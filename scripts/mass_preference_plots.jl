@@ -71,4 +71,4 @@ fig = let
     fig
 end
 
-save(joinpath(basepath, "images/cat_rodent_predation.png"), fig)
+save(joinpath(basepath, "images/norway_rat_traps_and_kills.png"), fig)
