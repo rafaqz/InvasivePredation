@@ -1,5 +1,9 @@
+using Revise
 using LandscapeChange
 using Unitful
+using InvasivePredation
+using StaticArrays
+using GLMakie
 
 include("load_data.jl")
 (; cat_mass_preference, rodent_stats, params, norway_rat_studies) = 
@@ -7,28 +11,20 @@ include("load_data.jl")
 
 # Hanski D parameters taken from cat mass preference model
 # These are relative, absolute value doesn't matter
+
+# From other script: make this a function
+max_yield_fraction = (0.10578653307702114, 0.1344295847234702, 0.17522617562570525) .* u"yr^-1"
 predation_rates = values(map(s -> s.predation_rate, rodent_stats))
-Ds = predation_rates ./ predation_rates[1]
-ks = Tuple(rodent_carrycap .* u"ha")
 
-Ns = Tuple(rodent_carrycap .* u"ha") ./ 5
-
-# norway_rat : black_rat : mouse
-# Roughly ~ 1:3:10
-#
-# rodents are ~80% of cat diet and they do not switch to natives much (Harper thesis etc)
-
-cs = Tuple(max_yield_fraction) ./ t
-ys = max_yield_fraction ./ t
-
-α12 = 0.5
+# How can we be more systematic about these
+α12 = 0.1
 α13 = 0.1
-α21 = 2.0
-α23 = 0.2
-α31 = 4.0
-α32 = 3.0
-# αs = (x -> 1.0).(αs)
+α21 = 1.0
+α23 = 0.1
+α31 = 1.3
+α32 = 1.3
 αs = @SMatrix [0.0 α12 α13; α21 0.0 α13; α31 α32 0.0]
+# αs = (x -> 1.0).(αs)
 
 # cs = individuals_per_cat
 
@@ -38,28 +34,48 @@ individuals_per_cat = cat_energy_intake ./ assimilated_energy_per_individual
 mean_prey_size = 60u"g" 
 mean_prey_n = cat_energy_intake / (mean_prey_size * rodent_energy_content * assimilation_efficiency)
 
-P = 0.00001
-cs = individuals_per_cat
-ys = max_yield_fraction ./ t
-v = eachrow(pred_df)[1].rmax * u"yr^-1"
-q = eachrow(pred_df)[1].carrycap
+t = 1u"d"
+Ds = predation_rates ./ predation_rates[1]
+cs = individuals_per_cat # Base intake reequirement
+ys = max_yield_fraction # Prey yields
+v = eachrow(pred_df)[1].rmax * u"yr^-1" # Predator rmax
+q = eachrow(pred_df)[1].carrycap # Predator carrycap
 e = cat_energy_intake
 Es = assimilated_energy_per_individual
-Ncrit = 4 / u"d"
+rs = rodent_rmax 
+# Ncrit = 4 / u"d"
 d_high = 0.2 / t
-P = 0.01
-Ns1 = 2 .* Ns
-Ns = Tuple(rodent_carrycap .* u"ha")
+# Ns1 = 2 .* Ns
 
-for i in 1:100
-    Ns = hanski_multi(P, Ns, Ds, Es, ys, αs, ks, cs, rt, d_high, t)
-    P = hanski_pred(P, v, q, e, d_high, Ns, ys, Es, Ds, t)
-    P
+P = 0.0001 
+Ns = Tuple(rodent_carrycap .* u"ha")
+P_timeline = [P]
+Ns_timeline = [Ns]
+for i in 1:10000
+    ks1 = if i > 3000 && i < 3100
+        100 .* ks # mast year
+    else
+        ks
+    end
+    Ns = hanski_multi(P, Ns, Ds, Es, ys, αs, ks1, cs, rs, d_high, t)
+    P = hanski_pred(P, v, e, d_high, Ns, ys, Es, Ds, t)
+    push!(P_timeline, P)
+    push!(Ns_timeline, Ns)
     @show (Ns, P)
 end
 
-simple_growth(N, k, r, t) = (N .* k) ./ (N .+ (k.- N) .* exp.(.-(r * t)))
 
-N = 10
-simple_growth(P, q, v, t)
+fig = Figure()
+ax1 = Axis(fig[1, 1])
+ax2 = Axis(fig[2, 1])
+Makie.lines!(ax1, map(first, Ns_timeline); label=rodent_labels[1])
+Makie.lines!(ax1, map(x -> x[2], Ns_timeline); label=rodent_labels[2])
+Makie.lines!(ax1, map(last, Ns_timeline); label=rodent_labels[3])
+Makie.lines!(ax2, P_timeline; label="cat")
+axislegend(ax1)
+
+
+# simple_growth(N, k, r, t) = (N .* k) ./ (N .+ (k.- N) .* exp.(.-(r * t)))
+# N = 10
+# simple_growth(P, q, v, t)
 

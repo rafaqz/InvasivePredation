@@ -1,5 +1,6 @@
 using CSV
 using DataFrames
+using InvasivePredation
 
 basepath = InvasivePredation.basepath
 

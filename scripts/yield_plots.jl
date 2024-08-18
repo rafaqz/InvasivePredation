@@ -21,7 +21,7 @@ include("load_data.jl")
 mean_rodent_mass = R(rodent_df.mass) .* u"g"
 # TODO calculate these means using the preference model
 mean_preferred_rodent_mass = NamedVector(norway_rat=110, black_rat=90, mouse=15) .* u"g"
-assimilated_energy_per_individual = rodent_mass .* rodent_energy_content .* assimilation_efficiency
+assimilated_energy_per_individual = mean_rodent_mass .* rodent_energy_content .* assimilation_efficiency
 individuals_per_cat = cat_energy_intake ./ assimilated_energy_per_individual
 
 # nsteps = 365
