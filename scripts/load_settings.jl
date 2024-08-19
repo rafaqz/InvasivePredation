@@ -2,9 +2,7 @@ using CSV
 using DataFrames
 using InvasivePredation
 
-basepath = InvasivePredation.basepath
-
-animals_csv = joinpath(basepath, "tables/animals.csv")
+animals_csv = joinpath(InvasivePredation.basepath, "tables/animals.csv")
 # run(`libreoffice $animals_csv`)
 
 pred_names = ["cat", "black_rat", "norway_rat", "mouse", "pig"]

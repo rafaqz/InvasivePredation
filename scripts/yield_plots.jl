@@ -15,7 +15,9 @@ using OptimizationNLopt
 
 using InvasivePredation
 
-include("load_data.jl")
+basepath = InvasivePredation.basepath
+
+include(joinpath(basepath, "scripts/load_settings.jl")r
 
 # Use mean from actual sizes taken for Norway rats, and guess the others
 mean_rodent_mass = R(rodent_df.mass) .* u"g"
@@ -77,6 +79,7 @@ fig = let
         # hidespines!(ax)
         ax
     end
+    x = stochastic_rates.std
     rodent_plots = map(1:3) do i
         color = colors[i]
         label = rodent_labels[i]

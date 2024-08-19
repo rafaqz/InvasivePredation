@@ -20,13 +20,12 @@ basepath = InvasivePredation.basepath
 # Data from Childs 1986
 
 
-Gnclude("load_data.jl")
+include(joinpath(basepath, "scripts/load_settings.jl"))
 
 (; cat_mass_preference, rodent_stats, params, norway_rat_studies) = 
     optimize_predation_rates_from_literature()
 
-fig = let
-    (; norway_rat, black_rat, mouse) = rodent_stats
+fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     fig = Figure(; size=(800, 600));
     ax1 = Axis(fig[1, 1]; ylabel="Fraction trapped")
     ax2 = Axis(fig[2, 1]; ylabel="Fraction of cat kills")
