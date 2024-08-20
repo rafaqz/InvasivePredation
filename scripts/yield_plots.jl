@@ -17,7 +17,7 @@ using InvasivePredation
 
 basepath = InvasivePredation.basepath
 
-include(joinpath(basepath, "scripts/load_settings.jl")r
+include(joinpath(basepath, "scripts/load_settings.jl"))
 
 # Use mean from actual sizes taken for Norway rats, and guess the others
 mean_rodent_mass = R(rodent_df.mass) .* u"g"
