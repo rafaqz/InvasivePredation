@@ -13,6 +13,18 @@ function _rejection_range(n, low=0, high=1, max_multiplier=2)
     end
 end
 
+# struct BinnedDistribution
+#     bin_fractions::Vector{Float64}
+#     bin_edges::Vector{Float64}
+# end
+
+# function Base.rand(bd::BinnedDistribution)
+#     x = rand()
+#     i = searchsortedfirst(bd.cumulative)
+#     lower = bin_edges[i] 
+#     upper = bin_edges[i + 1] 
+# end
+
 function interaction_matrix(bodymass;
     competition_to_predation_max = 0.1
 )
@@ -22,20 +34,22 @@ function interaction_matrix(bodymass;
     black_rat = 3
     mouse = 4
     pig = 5
-    rodents = [black_rat, norway_rat, mouse]
 
     interactions = zeros(5, 5)
 
     # cat/rodent
     # relative rankings of the effect of cats on an animal, low to high
-    cat_order = [norway_rat, black_rat, mouse]
+    cat_order = [norway_rat, black_rat, mouse] # Now we can use prey selection curves
+
+
     interactions[cats, rodents] = -sort(rand(3))[sortperm(cat_order)]
 
-    interactions[rodents, cats] .= (-interactions[cats, i] * sqrt(bodymass[i]) / sqrt(bodymass[cats]) for i in rodents)
+    interactions[rodents, cats] .= rodent_masses # (-interactions[cats, i] * sqrt(bodymass[i]) / sqrt(bodymass[cats]) for i in rodents)
 
     # cat/pig
     # Small negative interactions
     smallest_interaction = minimum(abs.(interactions[cats, black_rat:mouse]))
+
     # Pigs and cats are randomly less than half of the
     # smallest interactions of the other species
     interactions[cats, pig] = -rand() * 0.5smallest_interaction
@@ -97,3 +111,4 @@ function plot_densities(mat, nodes)
     end
     f
 end
+

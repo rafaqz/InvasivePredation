@@ -12,7 +12,7 @@ export interaction_matrix, plot_densities, plot_interactions
 export hanski_pred, hanski_predation, hanski_growth, hanski_multi
 
 export find_predation_preference, optimize_predation_preference, 
-    calculate_predation_rate, optimize_predation_rates_from_literature
+    calculate_predation_rate, fit_distributions_to_literature
 
 export optimise_hunting
 
