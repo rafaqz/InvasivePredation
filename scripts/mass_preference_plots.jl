@@ -26,17 +26,16 @@ include(joinpath(basepath, "scripts/load_settings.jl"))
     fit_distributions_to_literature()
 
 
+# yields = map(rodent_mass_distributions) do rodent
+#     (cdf.(rodent, 0:maxmass-1) .- cdf.(rodent, 1:maxmass)) .* 
+#     (cdf.(cat_mass_preference, 0:maxmass-1) .- cdf.(cat_mass_preference, 1:maxmass))
+# end
 
-yields = map(rodent_mass_distributions) do rodent
-    (cdf.(rodent, 0:maxmass-1) .- cdf.(rodent, 1:maxmass)) .* 
-    (cdf.(cat_mass_preference, 0:maxmass-1) .- cdf.(cat_mass_preference, 1:maxmass))
-end
-
-# Makie.lines(cat_mass_preference; strokecolor=:black)
-Makie.lines(yields[1])
-map(Makie.lines!, Base.tail(yields))
-Makie.plot(Normal(1, 1); color=:black)
-map(sum, yields)
+# # Makie.lines(cat_mass_preference; strokecolor=:black)
+# Makie.lines(yields[1])
+# map(Makie.lines!, Base.tail(yields))
+# Makie.plot(Normal(1, 1); color=:black)
+# map(sum, yields)
 
 fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     fig = Figure(; size=(800, 600));
@@ -68,7 +67,7 @@ fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     m3 = Makie.lines!(ax2, rodent_mass_distributions.mouse;
         color=(colors[3], alpha), label=rodent_labels[3] * " LogNormal model",
     )
-    b4 = Makie.lines!(ax3, params.bin_center_mass, params.killed_rats ./ sum(params.killed_rats);
+    b4 = Makie.lines!(ax3, norway_rat_params.bin_center_mass, norway_rat_params.killed_rats ./ sum(norway_rat_params.killed_rats);
         color=(colors[1], alpha), label="Norway rat killed sizes",
     )
 

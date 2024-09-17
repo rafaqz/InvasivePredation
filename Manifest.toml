@@ -2,7 +2,7 @@
 
 julia_version = "1.10.2"
 manifest_format = "2.0"
-project_hash = "f493500214754e0fdc5e4e0a6ca56879a1fb702f"
+project_hash = "8a18e00b9cf816df44243734184086ab98f19f9d"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "99a6f5d0ce1c7c6afdb759daa30226f71c54f6b0"
@@ -161,12 +161,6 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 git-tree-sha1 = "5d5dda960067751bc1534aba765f771325044501"
 uuid = "000d9b38-65fe-4c81-bdb9-69f01f102479"
 version = "1.0.7"
-
-[[deps.BayesianTools]]
-deps = ["Distributions", "Reexport", "StatsFuns"]
-path = "/home/raf/.julia/dev/BayesianTools"
-uuid = "196d93e9-2b0a-59bc-85dd-07b4a30d24dc"
-version = "0.1.0"
 
 [[deps.Bijections]]
 git-tree-sha1 = "95f5c7e2d177b7ba1a240b0518038b975d72a8c0"
