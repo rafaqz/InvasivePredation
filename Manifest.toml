@@ -2,7 +2,7 @@
 
 julia_version = "1.10.2"
 manifest_format = "2.0"
-project_hash = "8a18e00b9cf816df44243734184086ab98f19f9d"
+project_hash = "af78e98e5452da1adf3c01d5c6e604119a5319f8"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "99a6f5d0ce1c7c6afdb759daa30226f71c54f6b0"
@@ -1430,9 +1430,15 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[deps.ModelParameters]]
 deps = ["AbstractNumbers", "ConstructionBase", "Flatten", "PrettyTables", "Setfield", "Tables"]
-git-tree-sha1 = "0c0005772e7480875153d7782b29743b9cf6f990"
+git-tree-sha1 = "7168d455df4392c4099d239ea68adf02648116be"
+repo-rev = "makie"
+repo-url = "https://github.com/rafaqz/ModelParameters.jl.git"
 uuid = "4744a3fa-6c31-4707-899e-a3298e4618ad"
 version = "0.4.2"
+weakdeps = ["Makie"]
+
+    [deps.ModelParameters.extensions]
+    ModelParametersMakieExt = "Makie"
 
 [[deps.ModernGL]]
 deps = ["Libdl"]
