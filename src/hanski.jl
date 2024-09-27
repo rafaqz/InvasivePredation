@@ -3,14 +3,14 @@
     c * P * β * N / D_Nβs
 
 # Simple logistic population growth model
-@inline growth(N::Number, k::Number, r::Number, Ns_x, αs_x) =
-    r * N * (1 - (N + sum(αs_x .* Ns_x)) / k)
+@inline growth(N::Number, k::Number, r::Number, Ns_x, α_x) =
+    r * N * (1 - (N + sum(α_x .* Ns_x)) / k)
 
 const OTHER_INDS = ((2, 3), (1, 3), (1, 2))
 
 # N-prey predation model
-@inline function hanski_prey_timestep(P, Ns::NamedVector{K}, ks, model) where K
-    (; Ds, Es, ys, αs, cs, rs, d_high, t) = model
+@inline function hanski_prey_timestep(P, Ns::NamedVector{K}, ks, α, model) where K
+    (; Ds, cs, rs, t) = model
     @inbounds βs = map(d -> Ds[1] / d, Ds)
     Nβs = sum(βs .* Ns)
     @inbounds D_Nβs = Ds[1] + Nβs
@@ -18,9 +18,9 @@ const OTHER_INDS = ((2, 3), (1, 3), (1, 2))
     @inbounds map(is) do i
         other_inds = OTHER_INDS[i]
         N = Ns[i]
-        αs_x = map(j -> αs[i, j], other_inds)
+        α_x = map(j -> α[i, j], other_inds)
         Ns_x = map(j -> Ns[j], other_inds)
-        g = growth(Ns[i], ks[i], rs[i], Ns_x, αs_x)
+        g = growth(Ns[i], ks[i], rs[i], Ns_x, α_x)
         p = predation(Ns[i], βs[i], cs[i], P, D_Nβs)
         max(zero(N), N + (g - p) * t)
     end
@@ -33,6 +33,7 @@ end
     (; v, e, d_high, ys, Es, Ds, t) = model
     βs = Ds[1] ./ Ds
     Nβs = sum(Ns .* βs)
+    # Calculate carrycap `q` from yield and energy requirement
     q = convert(typeof(P), sum(Ns .* ys .* Es) / e)
     Preproduction = 1.5P # ??
     # If prey are above the breeding threshold
