@@ -5,10 +5,11 @@ using Distributions
 using LandscapeChange
 using StaticArrays
 using Unitful
-using GLMakie
 using Distributions
-# using CairoMakie
-# CairoMakie.activate!()
+# using GLMakie
+# GLMakie.activate!()
+using CairoMakie
+CairoMakie.activate!()
 
 using InvasivePredation
 
@@ -81,14 +82,46 @@ end
 save(joinpath(basepath, "images/cat_rodent_predation.png"), fig)
 
 fig = let
-    fig = Figure()
-    ax = Axis(fig[1, 1])
+    alpha = 0.6
+    fig = Figure(; size=(500, 300))
+    ax = Axis(fig[1, 1];
+        xticks=100:100:700,
+        xlabel="Rat mass",
+        ylabel="Fraction of total",
+    )
+    hidespines!(ax)
+    colors = [:violetred1, :deepskyblue]
     nrs = norway_rat_studies
-    Makie.barplot!(ax, nrs.bin_center_100, nrs.glass.trapped ./ sum(nrs.glass.trapped); label="Glass trapped")
-    Makie.barplot!(ax, nrs.bin_center_100, nrs.childs.trapped ./ sum(nrs.childs.trapped); label="Childs trapped")
-    Makie.lines!(ax, nrs.bin_center_100, nrs.glass.killed ./ sum(nrs.glass.killed); label="Glass killed")
-    Makie.lines!(ax, nrs.bin_center_25, nrs.childs.killed_25 ./ sum(nrs.childs.killed_25); label="Childs killed")
-    axislegend(ax; position=:rt)
+    gl = nrs.glass.trapped ./ sum(nrs.glass.trapped)
+    ch = nrs.childs.trapped ./ sum(nrs.childs.trapped)
+    gl_group = [1 for _ in gl]
+    ch_group = [2 for _ in ch]
+    height = vcat(gl, ch)
+    group = vcat(gl_group, ch_group)
+    category = vcat(nrs.bin_center_100, nrs.bin_center_100)
+    Makie.barplot!(ax, category, height; 
+        color=map(x -> (x, alpha), colors[group]),
+        dodge=group,
+    )
+
+    Makie.lines!(ax, nrs.bin_center_100, nrs.glass.killed ./ sum(nrs.glass.killed); 
+        label="Glass killed", 
+        color=(colors[1], alpha),
+    )
+    Makie.lines!(ax, nrs.bin_center_25, nrs.childs.killed_25 ./ sum(nrs.childs.killed_25); 
+        label="Childs killed", 
+        color=(colors[2], alpha),
+    )
+
+    labels = ["Trapped Childs 1986", "Trapped Glass 2009", 
+              "Killed Childs 1986", "Killed Glass 2009"]
+    elements = vcat(
+        [PolyElement(; polycolor=(colors[i], alpha)) for i in 1:2],
+        [LineElement(; linecolor=(colors[i], alpha)) for i in 1:2],
+    )
+    title = ""
+    Legend(fig[1, 2], elements, labels, title; framevisible=false)
+
     fig
 end
 
