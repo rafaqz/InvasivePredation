@@ -557,9 +557,7 @@ version = "0.3.23"
 
 [[deps.Dispersal]]
 deps = ["Dates", "Distributions", "DocStringExtensions", "DynamicGrids", "LinearAlgebra", "Reexport", "Statistics", "Stencils"]
-git-tree-sha1 = "b5a8ce9550708509922d2e73fbf30f3d92672fe4"
-repo-rev = "dev"
-repo-url = "https://github.com/cesaraustralia/Dispersal.jl.git"
+path = "/home/raf/.julia/dev/Dispersal"
 uuid = "8797f018-3445-11e9-3969-c13eb94a0661"
 version = "0.7.0"
 

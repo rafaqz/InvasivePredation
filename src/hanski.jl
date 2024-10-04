@@ -18,7 +18,7 @@ const OTHER_INDS = ((2, 3), (1, 3), (1, 2))
     @inbounds map(is) do i
         other_inds = OTHER_INDS[i]
         N = Ns[i]
-        α_x = map(j -> α[i, j], other_inds)
+        α_x = α[i]
         Ns_x = map(j -> Ns[j], other_inds)
         g = growth(Ns[i], ks[i], rs[i], Ns_x, α_x)
         p = predation(Ns[i], βs[i], cs[i], P, D_Nβs)
