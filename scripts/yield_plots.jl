@@ -17,36 +17,31 @@ using InvasivePredation
 
 basepath = InvasivePredation.basepath
 
-include(joinpath(basepath, "scripts/load_settings.jl"))
-
 # Use mean from actual sizes taken for Norway rats, and guess the others
 # mean_rodent_mass = R(rodent_df.mass) .* u"g"
-# TODO calculate these means using the preference model
+#
+#aTODO calculate these means using the preference model
 #
 (; cat_mass_preference, rodent_stats, rodent_mass_distributions, norway_rat_params, norway_rat_studies) = 
     fit_distributions_to_literature()
+
 # Use the mean selected mass calculated earlier
 mean_preferred_rodent_mass = NamedVector(map(r -> r.mean_predation_mass, rodent_stats))
 assimilated_energy_per_individual = mean_preferred_rodent_mass .* rodent_energy_content .* assimilation_efficiency .* fraction_eaten
 individuals_per_cat = cat_energy_intake ./ assimilated_energy_per_individual
 
-nsteps = 12 # 12 steps (months) is a close enough approximation of continuous
-years = 10u"yr"
-fraction_eaten = 0.72 # McGregor 2015
-seasonality = 0.0
-replicates = 100
-st = 0.0
 
-stochastic_rates = map((0.0:0.4:4.0)) do st
-    rodent_params = map(rodent_rmax, rodent_carrycap, individuals_per_cat) do rt, k, ipc
-        (; k, rt, replicates, fixed_take=false, nsteps, years, std=st, seasonality, fraction_eaten, individuals_per_cat=ipc)
-    end
-    optimise_hunting(rodent_params)
-end |> DataFrame
-stochastic_rates
-max_yield_fraction = NamedVector{Tuple(rodent_names)}(
-    collect(stochastic_rates[1, map(x -> Symbol(:frac_, x), rodent_names)])
-)
+function get_max_yield_fraction(p)
+    stochastic_rates = map((0.0:0.4:4.0)) do st
+        rodent_params = map(rodent_rmax, rodent_carrycap, individuals_per_cat) do rt, k, ipc
+            (; k, rt, replicates, fixed_take=false, nsteps, years, std=st, seasonality, fraction_eaten, individuals_per_cat=ipc)
+        end
+        optimise_hunting(rodent_params)
+    end |> DataFrame
+    max_yield_fraction = NamedVector{Tuple(rodent_names)}(
+        collect(stochastic_rates[1, map(x -> Symbol(:frac_, x), rodent_names)])
+    )
+end
 
 # k does not matter - we get the same yield rate regardless of k
 # so the model is general to any k

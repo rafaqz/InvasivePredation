@@ -25,9 +25,6 @@ include(joinpath(basepath, "scripts/load_settings.jl"))
 
 (; cat_mass_preference, rodent_stats, rodent_mass_distributions, norway_rat_params, norway_rat_studies) = 
     fit_distributions_to_literature()
-rodent_stats.black_rat |> pairs
-mouse.mean_predation_mass
-
 
 # yields = map(rodent_mass_distributions) do rodent
 #     (cdf.(rodent, 0:maxmass-1) .- cdf.(rodent, 1:maxmass)) .* 

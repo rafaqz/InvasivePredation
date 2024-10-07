@@ -2,7 +2,7 @@
 
 julia_version = "1.10.5"
 manifest_format = "2.0"
-project_hash = "9c85b8fa2f8240ddb95e3655cdd06cba9c6ae227"
+project_hash = "226bb398564a7b12dd7dc91020b916167ebb2a54"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "016833eb52ba2d6bea9fcb50ca295980e728ee24"
@@ -413,7 +413,7 @@ uuid = "3c3547ce-8d99-4f5e-a174-61eb10b00ae3"
 version = "0.3.23"
 
 [[deps.Dispersal]]
-deps = ["Dates", "Distributions", "DocStringExtensions", "DynamicGrids", "LinearAlgebra", "Reexport", "Statistics"]
+deps = ["Dates", "Distributions", "DocStringExtensions", "DynamicGrids", "LinearAlgebra", "Reexport", "Statistics", "Stencils"]
 path = "/home/raf/.julia/dev/Dispersal"
 uuid = "8797f018-3445-11e9-3969-c13eb94a0661"
 version = "0.7.0"
@@ -1353,6 +1353,10 @@ deps = ["AbstractNumbers", "ConstructionBase", "Flatten", "PrettyTables", "Setfi
 path = "/home/raf/.julia/dev/ModelParameters"
 uuid = "4744a3fa-6c31-4707-899e-a3298e4618ad"
 version = "0.4.2"
+weakdeps = ["Makie"]
+
+    [deps.ModelParameters.extensions]
+    ModelParametersMakieExt = "Makie"
 
 [[deps.ModernGL]]
 deps = ["Libdl"]

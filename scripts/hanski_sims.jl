@@ -4,12 +4,13 @@ using Unitful
 using StaticArrays
 using StatsBase
 using GLMakie
-using InvasivePredation
 using Dispersal
 using DynamicGrids
 using Setfield
 using Rasters
 using NCDatasets
+
+using InvasivePredation
 
 basepath = InvasivePredation.basepath
 alphapath = joinpath(basepath, "tables/alpha")
@@ -52,7 +53,7 @@ m = lc .!= 0
 # From other script: make this a function
 max_yield_fraction = (0.10578653307702114, 0.1344295847234702, 0.17522617562570525) .* u"yr^-1" .* 12
 predation_rates = values(map(s -> s.predation_rate, rodent_stats))
-hunted_rodent_mass = NamedVector(norway_rat=110, black_rat=90, mouse=15) .* u"g"
+hunted_rodent_mass = NamedVector(map(r -> r.mean_predation_mass, rodent_stats))
 assimilated_energy_per_individual = hunted_rodent_mass .* rodent_energy_content .* assimilation_efficiency
 individuals_per_cat = cat_energy_intake ./ assimilated_energy_per_individual
 mean_prey_size = 60u"g"
