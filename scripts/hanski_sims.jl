@@ -173,6 +173,14 @@ tspan = 1800.0:t/u"yr":2000.0
 output = ResultOutput(init; tspan, aux=(; lc))
 # sim!(output, ruleset; printframe=true)
 # @profview sim!(output, ruleset; printframe=true)
+init = (; a=rand(100, 100))
+tspan=1:10
+# TODO use observables for this...
+i = Ref(0)
+output = TransformedOutput(init; tspan, eltype=Union{Missing,NamedTuple}) do data
+    i[] += 1
+    i[] in (2, 10, 12) ? data : missing
+end
 
 output = MakieOutput(init; ruleset, tspan, fps=100, printframe=true, aux=(; lc), mask=m[Ti=1], store=true) do x
     inds = [(1, 1), (2, 1), (1, 2), (2, 2)]
