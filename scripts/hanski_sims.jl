@@ -177,7 +177,7 @@ init = (; a=rand(100, 100))
 tspan=1:10
 # TODO use observables for this...
 i = Ref(0)
-output = TransformedOutput(init; tspan, eltype=Union{Missing,NamedTuple}) do data
+output = TransformedOutput{Union{Missing,NamedTuple}}(init; tspan) do data
     i[] += 1
     i[] in (2, 10, 12) ? data : missing
 end
