@@ -1,3 +1,4 @@
+using Revise
 using CSV
 using DataFrames
 using Distributions
@@ -17,34 +18,8 @@ using InvasivePredation
 
 basepath = InvasivePredation.basepath
 
-# Use mean from actual sizes taken for Norway rats, and guess the others
-# mean_rodent_mass = R(rodent_df.mass) .* u"g"
-#
-#aTODO calculate these means using the preference model
-#
-(; cat_mass_preference, rodent_stats, rodent_mass_distributions, norway_rat_params, norway_rat_studies) = 
-    fit_distributions_to_literature()
-
-# Use the mean selected mass calculated earlier
-mean_preferred_rodent_mass = NamedVector(map(r -> r.mean_predation_mass, rodent_stats))
-assimilated_energy_per_individual = mean_preferred_rodent_mass .* rodent_energy_content .* assimilation_efficiency .* fraction_eaten
-individuals_per_cat = cat_energy_intake ./ assimilated_energy_per_individual
-
-
-function get_max_yield_fraction(p)
-    stochastic_rates = map((0.0:0.4:4.0)) do st
-        rodent_params = map(rodent_rmax, rodent_carrycap, individuals_per_cat) do rt, k, ipc
-            (; k, rt, replicates, fixed_take=false, nsteps, years, std=st, seasonality, fraction_eaten, individuals_per_cat=ipc)
-        end
-        optimise_hunting(rodent_params)
-    end |> DataFrame
-    max_yield_fraction = NamedVector{Tuple(rodent_names)}(
-        collect(stochastic_rates[1, map(x -> Symbol(:frac_, x), rodent_names)])
-    )
-end
-
-# k does not matter - we get the same yield rate regardless of k
-# so the model is general to any k
+s = InvasivePredation.load_settings()
+(; stochastic_rates, max_yield_fraction) = InvasivePredation.get_max_yield_fraction()
 
 # Stochasticity reduces yield
 fig = let
@@ -74,12 +49,12 @@ fig = let
         ax
     end
     linkxaxes!(axs...)
-    rodents = stochastic_rates[:, rodent_names]
-    fracs = stochastic_rates[:, map(x -> Symbol(:frac_, x), rodent_names)]
-    cats = stochastic_rates[:, map(x -> Symbol(:cat_, x), rodent_names)]
+    rodents = stochastic_rates[:, rodent.names]
+    fracs = stochastic_rates[:, map(x -> Symbol(:frac_, x), rodent.names)]
+    cats = stochastic_rates[:, map(x -> Symbol(:cat_, x), rodent.names)]
     rodent_plots = map(1:3) do i
-        color = colors[i]
-        label = rodent_labels[i]
+        color = s.rodent.colors[i]
+        label = s.rodent.labels[i]
         p1 = Makie.lines!(axs[1], x, fracs[:, i];
             label, color
         )

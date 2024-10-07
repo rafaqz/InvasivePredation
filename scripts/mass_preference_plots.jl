@@ -19,9 +19,7 @@ basepath = InvasivePredation.basepath
 # Calculate mass preferences from papers with both trapped and caught rates
 
 # Data from Childs 1986
-
-
-include(joinpath(basepath, "scripts/load_settings.jl"))
+(; cat, rodent) = InvasivePredation.load_settings()
 
 (; cat_mass_preference, rodent_stats, rodent_mass_distributions, norway_rat_params, norway_rat_studies) = 
     fit_distributions_to_literature()
@@ -38,6 +36,7 @@ include(joinpath(basepath, "scripts/load_settings.jl"))
 # map(sum, yields)
 
 fig = let (; norway_rat, black_rat, mouse) = rodent_stats
+    colors = rodent.colors
     fig = Figure(; size=(600, 800));
     ax1 = Axis(fig[1, 1]; ylabel="Fraction trapped")
     ax2 = Axis(fig[2, 1]; ylabel="LogNormal models")
@@ -50,29 +49,29 @@ fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     linkxaxes!(axs...)
     alpha = 0.7
     b1 = Makie.lines!(ax1, norway_rat.bin_center_mass, norway_rat.trap_rate;
-        color=(colors[1], alpha), label=rodent_labels[1] * " trapped sizes",
+        color=(colors[1], alpha), label=rodent.labels[1] * " trapped sizes",
     )
     b2 = Makie.lines!(ax1, black_rat.bin_center_mass, black_rat.trap_rate;
-        color=(colors[2], alpha), label=rodent_labels[2] * " trapped sizes",
+        color=(colors[2], alpha), label=rodent.labels[2] * " trapped sizes",
     )
     b3 = Makie.lines!(ax1, mouse.bin_center_mass, mouse.trap_rate;
-        color=(colors[3], alpha), label=rodent_labels[3] * " estimated sizes",
+        color=(colors[3], alpha), label=rodent.labels[3] * " estimated sizes",
     )
     m1 = Makie.lines!(ax2, rodent_mass_distributions.norway_rat;
-        color=(colors[1], alpha), label=rodent_labels[1] * " LogNormal model",
+        color=(colors[1], alpha), label=rodent.labels[1] * " LogNormal model",
     )
     m2 = Makie.lines!(ax2, rodent_mass_distributions.black_rat;
-        color=(colors[2], alpha), label=rodent_labels[2] * " LogNormal model",
+        color=(colors[2], alpha), label=rodent.labels[2] * " LogNormal model",
     )
     m3 = Makie.lines!(ax2, rodent_mass_distributions.mouse;
-        color=(colors[3], alpha), label=rodent_labels[3] * " LogNormal model",
+        color=(colors[3], alpha), label=rodent.labels[3] * " LogNormal model",
     )
     b4 = Makie.lines!(ax3, norway_rat_params.bin_center_mass, norway_rat_params.killed_rats ./ sum(norway_rat_params.killed_rats);
         color=(colors[1], alpha), label="Norway rat killed sizes",
     )
 
     l = Makie.plot!(ax4, cat_mass_preference; color=:black, label="Cat mass preference model")
-    d = Makie.density!(ax5, cat_mean_prey_sizes; color=:grey, label="Literature mean prey sizes")
+    d = Makie.density!(ax5, cat.mean_prey_sizes; color=:grey, label="Literature mean prey sizes")
     axislegend.(axs; position=:rt)
     Makie.xlims!.(axs, ((0, 600),))
     fig

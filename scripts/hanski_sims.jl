@@ -14,27 +14,7 @@ using InvasivePredation
 
 basepath = InvasivePredation.basepath
 alphapath = joinpath(basepath, "tables/alpha")
-
-function pred_prey_sim(model)
-    (; P, Ns, P_timeline, Ns_timeline, ks, α, tspan) = model
-    P1 = P
-    Ns1 = Ns
-    @inbounds for i in tspan
-        # ks1 = if i > 3200 && i < 3200 || i > 6200 && i < 6200
-        #     2 .* ks # mast year
-        # else
-        #     ks
-        # end
-        Ns2 = hanski_prey_timestep(P1, Ns1, ks, α, model)::typeof(Ns)
-        P1 = hanski_predator_timestep(P1, Ns1, model)::typeof(P)
-        Ns1 = Ns2
-        P_timeline[i] = P1
-        Ns_timeline[i] = Ns1
-    end
-    return P_timeline, Ns_timeline
-end
-
-include("load_settings.jl")
+(; cat, rodent) = s = InvasivePredation.load_settings()
 (; cat_mass_preference, rodent_stats, norway_rat_params, norway_rat_studies) =
     fit_distributions_to_literature()
 
@@ -51,14 +31,12 @@ m = lc .!= 0
 # These are relative, absolute value doesn't matter
 
 # From other script: make this a function
-max_yield_fraction = (0.10578653307702114, 0.1344295847234702, 0.17522617562570525) .* u"yr^-1" .* 12
-predation_rates = values(map(s -> s.predation_rate, rodent_stats))
-hunted_rodent_mass = NamedVector(map(r -> r.mean_predation_mass, rodent_stats))
-assimilated_energy_per_individual = hunted_rodent_mass .* rodent_energy_content .* assimilation_efficiency
-individuals_per_cat = cat_energy_intake ./ assimilated_energy_per_individual
-mean_prey_size = 60u"g"
-mean_prey_n = cat_energy_intake / (mean_prey_size * rodent_energy_content * assimilation_efficiency)
+(; max_yield_fraction) = InvasivePredation.get_max_yield_fraction()
+max_yield_fraction = max_yield_fraction .* u"yr^-1" .* 12
+(; assimilated_energy, individuals_per_cat) = InvasivePredation.get_cat_energetics(cat, rodent, rodent_stats)
+
 t = u"yr" / 12
+predation_rates = values(map(s -> s.predation_rate, rodent_stats))
 Ds = predation_rates ./ predation_rates[1]
 cs = individuals_per_cat # Base intake reequirement
 # ys = map(x -> Param(x; label="yield"), max_yield_fraction) # Prey yields
@@ -66,12 +44,12 @@ ys = max_yield_fraction # Prey yields
 # ks = map(propertynames(rodent_carrycap), values(rodent_carrycap .* u"ha")) do k, v
 #     Param(v; label="$k carrycap")
 # end |> NamedVector{(:norway_rat, :black_rat, :mouse)}
-ks = rodent_carrycap .* u"ha"
-v = eachrow(pred_df)[1].rmax * u"yr^-1" # Predator rmax
+ks = rodent.carrycap .* u"ha"
+v = cat.rmax * u"yr^-1" # Predator rmax
 # q = eachrow(pred_df)[1].carrycap # Predator carrycap
-e = cat_energy_intake
-Es = assimilated_energy_per_individual
-rs = rodent_rmax
+e = cat.energy_intake
+Es = assimilated_energy
+rs = rodent.rmax
 d_high = 0.2 / t
 # Ncrit = 4 / u"d"
 # Ns1 = 2 .* Ns
@@ -91,7 +69,7 @@ d_high = 0.2 / t
 
 # Init conditions
 P = 0.0001
-Ns = rodent_carrycap .* u"ha" ./ 2
+Ns = rodent.carrycap .* u"ha" ./ 2
 tspan = 1:10000
 P_timeline = Vector{typeof(P)}(undef, length(tspan))
 Ns_timeline = Vector{typeof(Ns)}(undef, length(tspan))

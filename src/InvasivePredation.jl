@@ -7,10 +7,12 @@ using OptimizationOptimJL
 using OptimizationNLopt
 using Unitful
 using LandscapeChange
+using CSV
+using DataFrames
 
 export interaction_matrix, plot_densities, plot_interactions
 
-export hanski_predator_timestep, hanski_prey_timestep
+export hanski_predator_timestep, hanski_prey_timestep, hanski_sim
 
 export find_predation_preference, optimize_predation_preference, 
     calculate_predation_rate, fit_distributions_to_literature
@@ -23,5 +25,6 @@ include("interactions.jl")
 include("hanski.jl")
 include("preference.jl")
 include("yield.jl")
+include("load_settings.jl")
 
 end

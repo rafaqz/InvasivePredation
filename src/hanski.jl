@@ -1,3 +1,22 @@
+function hanski_sim(model)
+    (; P, Ns, P_timeline, Ns_timeline, ks, α, tspan) = model
+    P1 = P
+    Ns1 = Ns
+    @inbounds for i in tspan
+        # ks1 = if i > 3200 && i < 3200 || i > 6200 && i < 6200
+        #     2 .* ks # mast year
+        # else
+        #     ks
+        # end
+        Ns2 = hanski_prey_timestep(P1, Ns1, ks, α, model)::typeof(Ns)
+        P1 = hanski_predator_timestep(P1, Ns1, model)::typeof(P)
+        Ns1 = Ns2
+        P_timeline[i] = P1
+        Ns_timeline[i] = Ns1
+    end
+    return P_timeline, Ns_timeline
+end
+
 # Multi-prey weighted predation
 @inline predation(N::Number, β::Number, c::Number, P::Number, D_Nβs::Number) =
     c * P * β * N / D_Nβs
