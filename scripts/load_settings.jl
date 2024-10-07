@@ -5,8 +5,6 @@ using InvasivePredation
 animals_csv = joinpath(InvasivePredation.basepath, "tables/animals.csv")
 # run(`libreoffice $animals_csv`)
 
-pred_names = ["cat", "black_rat", "norway_rat", "mouse", "pig"]
-
 pred_df = CSV.read(animals_csv, DataFrame)
 colors = [:red, :lightblue, :yellow]
 cat_data = map(identity, NamedTuple(filter(r -> r.name == "cat", pred_df)[1, :]))

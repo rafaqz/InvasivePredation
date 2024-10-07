@@ -20,46 +20,33 @@ basepath = InvasivePredation.basepath
 include(joinpath(basepath, "scripts/load_settings.jl"))
 
 # Use mean from actual sizes taken for Norway rats, and guess the others
-mean_rodent_mass = R(rodent_df.mass) .* u"g"
+# mean_rodent_mass = R(rodent_df.mass) .* u"g"
 # TODO calculate these means using the preference model
-mean_preferred_rodent_mass = NamedVector(norway_rat=110, black_rat=90, mouse=15) .* u"g"
-assimilated_energy_per_individual = mean_rodent_mass .* rodent_energy_content .* assimilation_efficiency
+#
+(; cat_mass_preference, rodent_stats, rodent_mass_distributions, norway_rat_params, norway_rat_studies) = 
+    fit_distributions_to_literature()
+# Use the mean selected mass calculated earlier
+mean_preferred_rodent_mass = NamedVector(map(r -> r.mean_predation_mass, rodent_stats))
+assimilated_energy_per_individual = mean_preferred_rodent_mass .* rodent_energy_content .* assimilation_efficiency .* fraction_eaten
 individuals_per_cat = cat_energy_intake ./ assimilated_energy_per_individual
 
-# nsteps = 365
-# 12 steps (months) is a close enough approximation of continuous
-
-# seasonality_rates = map(0.0:0.1:0.9) do seasonality
-#     rodent_params = map(R(rodent_names)) do rodent
-#         (; k=k[rodent], rt=rt[rodent], fixed_take=true, std=0.1, replicates=100, seasonality, nsteps, years, fraction_eaten)
-#     end
-#     optimise_hunting(rodent_params)
-# end |> DataFrame
-
-# rodent_params = map(R(rodent_names)) do rodent
-#     (; k=k[rodent], rt=rt[rodent], fixed_take=true, std=0.2, nsteps, years, seasonality, fraction_eaten, replicates)
-# end
-# p = rodent_params[3]
-# x0 = 0.075
-# rodent_func(x0, p)
-# optimise_hunting(rodent_params)
-
-nsteps = 12
-years = 10
+nsteps = 12 # 12 steps (months) is a close enough approximation of continuous
+years = 10u"yr"
 fraction_eaten = 0.72 # McGregor 2015
-seasonality = 0.5
-replicates = 1
+seasonality = 0.0
+replicates = 100
+st = 0.0
 
-stochastic_rates = map((0.0:0.2:1.5).^2) do std
-    rodent_params = map(R(rodent_names), individuals_per_cat) do rodent, individuals_per_cat
-        (; k=k[rodent], rt=rt[rodent], replicates=25, fixed_take=false, nsteps, years, std, seasonality, fraction_eaten, individuals_per_cat)
+stochastic_rates = map((0.0:0.4:4.0)) do st
+    rodent_params = map(rodent_rmax, rodent_carrycap, individuals_per_cat) do rt, k, ipc
+        (; k, rt, replicates, fixed_take=false, nsteps, years, std=st, seasonality, fraction_eaten, individuals_per_cat=ipc)
     end
     optimise_hunting(rodent_params)
 end |> DataFrame
-max_yield_fraction = Tuple(DataFrame(stochastic_rates)[1, 3:5])
-
-# Why is this relationship slightly under 1
-# max_yield_fraction ./ (takes[1] / ustrip(rt[1]))
+stochastic_rates
+max_yield_fraction = NamedVector{Tuple(rodent_names)}(
+    collect(stochastic_rates[1, map(x -> Symbol(:frac_, x), rodent_names)])
+)
 
 # k does not matter - we get the same yield rate regardless of k
 # so the model is general to any k
@@ -67,29 +54,44 @@ max_yield_fraction = Tuple(DataFrame(stochastic_rates)[1, 3:5])
 # Stochasticity reduces yield
 fig = let
     fig = Figure(; title="Effects of monthly stochasticity on optimal hunting yields", size=(600, 800));
-    labels = ["Mean fraction hunted per month", "Supported cats per km^2", "Rodents per hectare"]
-    axs = map(1:3, labels) do i, ylabel
+    labels = ["Optimal fraction hunted per month", "Supported cats per km^2", "Mean rodents per hectare"]
+    yl = ((0, 0.2), (0, 1.5), (0, 40))
+    x = stochastic_rates.std
+    xticks = 0:0.4:4.0
+    axs = map(enumerate(labels)) do (i, ylabel)
         ax = if i == 3
             Axis(fig[i, 1];
-                xlabel="Scale of log-normal hunting stochasticity", ylabel,
+                xlabel="Scalar of standard deviation of hunting stochasticity", 
+                # xlabel="seasonality", 
+                ylabel, 
+                xticks,
             )
         else
-            Axis(fig[i, 1]; ylabel, xticksvisible=false, xticklabelsvisible=false)
+            Axis(fig[i, 1]; 
+                ylabel, 
+                xticks,
+                xticksvisible=false, 
+                xticklabelsvisible=false
+            )
         end
+        ylims!(ax, yl[i])
         # hidespines!(ax)
         ax
     end
-    x = stochastic_rates.std
+    linkxaxes!(axs...)
+    rodents = stochastic_rates[:, rodent_names]
+    fracs = stochastic_rates[:, map(x -> Symbol(:frac_, x), rodent_names)]
+    cats = stochastic_rates[:, map(x -> Symbol(:cat_, x), rodent_names)]
     rodent_plots = map(1:3) do i
         color = colors[i]
         label = rodent_labels[i]
-        p1 = Makie.lines!(axs[1], x, ustrip.(stochastic_rates[:, i+1]);
+        p1 = Makie.lines!(axs[1], x, fracs[:, i];
             label, color
         )
-        p2 = Makie.lines!(axs[2], x, ustrip.(stochastic_rates[:, i+4]);
+        p2 = Makie.lines!(axs[2], x, cats[:, i];
             label, color
         )
-        p3 = Makie.lines!(axs[3], x, ustrip.(stochastic_rates[:, i+7]);
+        p3 = Makie.lines!(axs[3], x, rodents[:, i];
             label, color
         )
         (p1, p2, p3)

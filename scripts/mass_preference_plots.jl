@@ -25,6 +25,8 @@ include(joinpath(basepath, "scripts/load_settings.jl"))
 
 (; cat_mass_preference, rodent_stats, rodent_mass_distributions, norway_rat_params, norway_rat_studies) = 
     fit_distributions_to_literature()
+rodent_stats.black_rat |> pairs
+mouse.mean_predation_mass
 
 
 # yields = map(rodent_mass_distributions) do rodent
@@ -39,7 +41,7 @@ include(joinpath(basepath, "scripts/load_settings.jl"))
 # map(sum, yields)
 
 fig = let (; norway_rat, black_rat, mouse) = rodent_stats
-    fig = Figure(; size=(800, 600));
+    fig = Figure(; size=(600, 800));
     ax1 = Axis(fig[1, 1]; ylabel="Fraction trapped")
     ax2 = Axis(fig[2, 1]; ylabel="LogNormal models")
     ax3 = Axis(fig[3, 1]; ylabel="Fraction of cat kills")
@@ -74,7 +76,7 @@ fig = let (; norway_rat, black_rat, mouse) = rodent_stats
 
     l = Makie.plot!(ax4, cat_mass_preference; color=:black, label="Cat mass preference model")
     d = Makie.density!(ax5, cat_mean_prey_sizes; color=:grey, label="Literature mean prey sizes")
-    axislegend.(axs; position=:rc)
+    axislegend.(axs; position=:rt)
     Makie.xlims!.(axs, ((0, 600),))
     fig
 end

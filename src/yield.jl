@@ -2,75 +2,72 @@
 
 function rodent_func(x, p)
     (; k, rt, nsteps, years, seasonality, fixed_take, replicates) = p
-    replicates = map(1:replicates) do i
-        N = k
+    reps = map(1:replicates) do i
+        N = 2k
         # In a non-spatial model have to leave some population or it cant recover.
         minleft = oneunit(N) * 0.01
-        total_taken = zero(N)
+        nyears = length(oneunit(years):oneunit(years):years)
 
         # Burn in
-        for _ in 1:5
+        for _ in 1:nyears
             for s in 1:nsteps
-                # @show N
-                k_season = _seasonal_k(k, seasonality, nsteps, s)
-                yield = rand(LogNormal(log(x[1]), p.std))
-                N = (N .* k_season) ./ (N .+ (k_season .- N) .* exp.(.-(rt / (nsteps * u"yr^-1"))))
-                # println()
-                # @show k_season N
-                # Cant take the whole population
-                taken = if fixed_take
-                    max(-N + minleft, k * -yield)
-                else
-                    max(-N + minleft, N * -yield)
-                end
-                N += taken
+                N, taken = _update_pop(seasonality, s, x[1], minleft, p, N)
             end
         end
+
+        sumN = zero(N)
         total_taken = zero(N)
-        for _ in 1:years
+        for _ in 1:nyears
             for s in 1:nsteps
-                # @show N
-                k_season = _seasonal_k(k, seasonality, nsteps, s)
-                yield = rand(LogNormal(log(x[1]), p.std))
-                N = (N .* k_season) ./ (N .+ (k_season .- N) .* exp.(.-(rt / (nsteps * u"yr^-1"))))
-                # println()
-                # @show k_season N
-                # Cant take the whole population
-                taken = if fixed_take
-                    max(-N + minleft, k * -yield)
-                else
-                    max(-N + minleft, N * -yield)
-                end
-                @assert taken <= zero(taken) "taken: $taken N: $N yield: $yield"
-                @assert taken >= -N "taken: $taken N: $N yield: $yield"
-                N += taken
+                sumN += N
+                N, taken = _update_pop(seasonality, s, x[1], minleft, p, N)
                 total_taken += taken
             end
         end
-        return (taken=total_taken / years, final_pop=N)
+        (taken=total_taken / years, final_pop=N, mean_pop=sumN / (nsteps * nyears))
     end
-    return (taken=mean(first, replicates), final_pop=mean(last, replicates))
+    return (taken=mean(r -> r.taken, reps), final_pop=mean(r -> r.final_pop, reps), mean_pop=mean(r -> r.mean_pop, reps))
 end
-rodent_take_unitless(x, p) = ustrip(rodent_take(x, p))
-rodent_take(x, p) = rodent_func(x, p)[1]
-rodent_pop(x, p) = rodent_func(x, p)[2]
+rodent_loss(x, p) = -ustrip(rodent_func(x, p)[:taken])
+
+function _update_pop(seasonality, s, x, minleft, p, N)
+    (; k, rt, nsteps, fixed_take) = p
+    k_season = _seasonal_k(k, seasonality, nsteps, s)
+    N = (N .* k_season) ./ (N .+ (k_season .- N) .* exp.(.-(rt / (nsteps * u"yr^-1"))))
+    yield = max(zero(x), rand(Normal(x, p.std * x)))
+    # Cant take the whole population
+    taken = min(N * yield, N - minleft)
+    N -= taken
+    # @assert taken <= zero(taken) "taken less than zero: $taken N: $N yield: $yield"
+    # @assert taken >= -N "taken more than N: $taken N: $N yield: $yield"
+    return N, taken
+end
 
 _seasonal_k(k, seasonality, nsteps, s) = k + k * seasonality * sin(2π * s / nsteps)
 
 function optimise_hunting(rodent_params)
-    p = first(rodent_params)
-    optimal_takes = map(rodent_params) do p
-        x0 = [0.1]
-        prob = OptimizationProblem(rodent_take_unitless, x0, p; lb=[0.0], ub=[1.0])
+    optimal_fraction = map(rodent_params) do p
+        x0 = [0.01]
+        prob = OptimizationProblem(rodent_loss, x0, p; lb=[0.0], ub=[1.0])
         sol = solve(prob, SAMIN(); maxiters=10000)
-        sol.u
+        sol.u[1]
     end
-    optimal_pops = map(rodent_pop, optimal_takes, rodent_params)
-    optimal_caught = map(rodent_take, optimal_takes, rodent_params) ./ u"yr" .* -1
-    max_supported_cats = uconvert.(u"km^-2", optimal_caught ./ p.individuals_per_cat .* p.fraction_eaten)
 
-    takes = NamedTuple{map(k -> Symbol(:taken_, k), propertynames(optimal_takes))}(values(optimal_takes))
-    cats = NamedTuple{map(k -> Symbol(:cat_, k), propertynames(max_supported_cats))}(values(max_supported_cats))
+    stats = map(optimal_fraction, rodent_params) do of, p
+        mean(p.replicates) do _
+            x = rodent_func(of, p)
+            frac = of
+            take = x.taken
+            pop = x.mean_pop
+            cats = uconvert(u"km^-2", pop * frac / p.individuals_per_cat / (1/12)u"yr")
+            [frac, take, pop, cats]
+        end |> NamedTuple{(:frac, :take, :pop, :cats)}
+    end
 
-    return (; std=p.std, seasonality=p.seasonality, map(first, takes)..., cats..., NamedTuple(optimal_pops)...)
+    fracs = NamedTuple{map(k -> Symbol(:frac_, k), propertynames(rodent_params))}(map(x -> x.frac, stats))
+    takes = NamedTuple{map(k -> Symbol(:taken_, k), propertynames(rodent_params))}(map(x -> x.take, stats))
+    cats = NamedTuple{map(k -> Symbol(:cat_, k), propertynames(rodent_params))}(map(x -> x.cats, stats))
+    pops = NamedTuple(map(x -> x.pop, stats))
+
+    return (; std=rodent_params.mouse.std, seasonality=rodent_params.mouse.seasonality, fracs..., cats..., pops..., takes...)
 end

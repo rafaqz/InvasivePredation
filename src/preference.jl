@@ -24,9 +24,8 @@ end
 
 function calculate_predation_rate(predator_preference, bin_center_mass, trap_rate)
     # Calculate bin mass statistics
-    bin_mean_mass = trap_rate .* bin_center_mass
-    mean_mass = sum(bin_mean_mass)
-    mass_distribution = bin_mean_mass ./ mean_mass
+    bin_mass = trap_rate .* bin_center_mass
+    mean_mass = sum(bin_mass)
 
     # Calculate predation probability densities for mass bins
     # based on the mass preference distribution of the predator
@@ -35,11 +34,12 @@ function calculate_predation_rate(predator_preference, bin_center_mass, trap_rat
     # We assume the trap rate is similar to 
     # the encounter rate experience by predators
     predation_rates = predation_pds .* trap_rate
-    normalised_rates = predation_rates ./ sum(trap_rate)
-    normalised_mass_yield = sum(normalised_rates .* mass_distribution .* mean_mass)
-    mass_yields = sum(predation_rates .* mass_distribution)
+    normalised_rates = predation_rates ./ sum(predation_rates)
+    normalised_mass_yield = normalised_rates .* bin_mass
+    mean_predation_mass = sum(normalised_rates .* bin_center_mass)
+    mass_yields = sum(predation_rates .* bin_mass)
     predation_rate = sum(predation_rates)
-    return (; bin_center_mass, mean_mass, mass_distribution, mass_yields, predation_pds, predation_rates, predation_rate, trap_rate)
+    return (; bin_center_mass, mean_mass, mean_predation_mass, bin_mass, mass_yields, predation_pds, predation_rates, predation_rate, trap_rate)
 end
 
 function optimize_mass_distribution(p)
