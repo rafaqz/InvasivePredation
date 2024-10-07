@@ -5,7 +5,7 @@ function get_max_yield_fraction()
     (; cat_mass_preference, rodent_stats, rodent_mass_distributions, norway_rat_params, norway_rat_studies) = 
         fit_distributions_to_literature()
 
-    (; individuals_per_cat) = get_rodents_per_cat(cat, rodent, rodent_stats)
+    (; individuals_per_cat) = get_cat_energetics(cat, rodent, rodent_stats)
     # Note: we get the same yield regardless of k, so this is general to any k
     stochastic_rates = map((0.0:0.4:4.0)) do st
         rodent_params = map(rodent.rmax, rodent.carrycap, individuals_per_cat) do rt, k, ipc
@@ -21,7 +21,7 @@ function get_max_yield_fraction()
     end |> DataFrame
     max_yield_fraction = NamedVector{Tuple(rodent.names)}(
         collect(stochastic_rates[1, map(x -> Symbol(:frac_, x), rodent.names)])
-    )
+    ) .* 12u"yr^-1"
     return (; stochastic_rates, max_yield_fraction)
 end
 

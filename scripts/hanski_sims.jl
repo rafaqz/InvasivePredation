@@ -9,6 +9,7 @@ using DynamicGrids
 using Setfield
 using Rasters
 using NCDatasets
+GLMakie.activate!()
 
 using InvasivePredation
 
@@ -17,6 +18,8 @@ alphapath = joinpath(basepath, "tables/alpha")
 (; cat, rodent) = s = InvasivePredation.load_settings()
 (; cat_mass_preference, rodent_stats, norway_rat_params, norway_rat_studies) =
     fit_distributions_to_literature()
+(; max_yield_fraction) = InvasivePredation.get_max_yield_fraction()
+(; assimilated_energy, individuals_per_cat) = InvasivePredation.get_cat_energetics(cat, rodent, rodent_stats)
 
 lc_path = joinpath(basepath, "data/lc_predictions_mus.nc")
 lc = RasterStack(lc_path) |>
@@ -31,9 +34,6 @@ m = lc .!= 0
 # These are relative, absolute value doesn't matter
 
 # From other script: make this a function
-(; max_yield_fraction) = InvasivePredation.get_max_yield_fraction()
-max_yield_fraction = max_yield_fraction .* u"yr^-1" .* 12
-(; assimilated_energy, individuals_per_cat) = InvasivePredation.get_cat_energetics(cat, rodent, rodent_stats)
 
 t = u"yr" / 12
 predation_rates = values(map(s -> s.predation_rate, rodent_stats))
@@ -76,22 +76,22 @@ Ns_timeline = Vector{typeof(Ns)}(undef, length(tspan))
 model = (; P, Ns, ks, Ds, Es, ys, α, cs, rs, d_high, v, e, P_timeline, Ns_timeline, t, tspan)
 
 # Live interaction to find α parameters
-# mm = MakieModel(model) do layout, m
-#     ax1 = Axis(layout[1, 1])
-#     ax2 = Axis(layout[2, 1])
-#     res = lift(pred_prey_sim, m)
-#     P_timeline = lift(first, res)
-#     Rn_timeline = lift(r -> getindex.(last(r), 1), res)
-#     Rr_timeline = lift(r -> getindex.(last(r), 2), res)
-#     Mm_timeline = lift(r -> getindex.(last(r), 3), res)
-#     Makie.lines!(ax1, Rn_timeline; label=rodent_labels[1])
-#     Makie.lines!(ax1, Rr_timeline; label=rodent_labels[2])
-#     Makie.lines!(ax1, Mm_timeline; label=rodent_labels[3])
-#     Makie.lines!(ax2, P_timeline; label="Cat")
-#     linkxaxes!(ax1, ax2)
-#     axislegend(ax1)
-#     axislegend(ax2)
-# end
+mm = MakieModel(model) do layout, m
+    ax1 = Axis(layout[1, 1])
+    ax2 = Axis(layout[2, 1])
+    res = lift(pred_prey_sim, m)
+    P_timeline = lift(first, res)
+    Rn_timeline = lift(r -> getindex.(last(r), 1), res)
+    Rr_timeline = lift(r -> getindex.(last(r), 2), res)
+    Mm_timeline = lift(r -> getindex.(last(r), 3), res)
+    Makie.lines!(ax1, Rn_timeline; label=rodent.labels[1])
+    Makie.lines!(ax1, Rr_timeline; label=rodent.labels[2])
+    Makie.lines!(ax1, Mm_timeline; label=rodent.labels[3])
+    Makie.lines!(ax2, P_timeline; label="Cat")
+    linkxaxes!(ax1, ax2)
+    axislegend(ax1)
+    axislegend(ax2)
+end
 
 # Manual parameter definition
 
@@ -135,7 +135,7 @@ hanski_rule = let lc=Aux{:lc}(), lc_ks=stripparams(lc_ks), model=model
     end
 end
 
-cat_spread_rule = OutwardsDispersal{:cats}(; 
+cat_spread_rule = OutwardsDispersal{:cats}(;
     stencil=Moore(3),
     formulation=ExponentialKernel(Param(0.2, label="cat λ", bounds=(0.00001, 10.0))),
     maskbehavior=Dispersal.CheckMaskEdges()

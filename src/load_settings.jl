@@ -32,7 +32,7 @@ function load_settings()
             nsteps=12, # 12 steps (months) is a close enough approximation of continuous
             years=10u"yr",
             seasonality=0.0,
-            replicates=100,
+            replicates=10,
         )
     )
 end
