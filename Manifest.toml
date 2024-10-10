@@ -453,7 +453,9 @@ version = "1.6.0"
 
 [[deps.DynamicGrids]]
 deps = ["Adapt", "Colors", "ConstructionBase", "Crayons", "Dates", "DimensionalData", "DocStringExtensions", "FileIO", "FreeTypeAbstraction", "KernelAbstractions", "LinearAlgebra", "ModelParameters", "REPL", "Random", "Reexport", "Setfield", "StaticArrays", "Stencils", "Test", "UnicodeGraphics"]
-path = "/home/raf/.julia/dev/DynamicGrids"
+git-tree-sha1 = "0c4615ebd7d1906e5885cac57c4a4fbd15adf74b"
+repo-rev = "better_makie"
+repo-url = "https://github.com/cesaraustralia/DynamicGrids.jl.git"
 uuid = "a5dba43e-3abc-5203-bfc5-584ca68d3f5b"
 version = "0.21.4"
 
