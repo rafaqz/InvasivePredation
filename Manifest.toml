@@ -414,7 +414,9 @@ version = "0.3.23"
 
 [[deps.Dispersal]]
 deps = ["Dates", "Distributions", "DocStringExtensions", "DynamicGrids", "LinearAlgebra", "Reexport", "Statistics", "Stencils"]
-path = "/home/raf/.julia/dev/Dispersal"
+git-tree-sha1 = "0193b364a3ea239fe6570c44a5ba8ad159abed57"
+repo-rev = "multipop_dispersal"
+repo-url = "https://github.com/cesaraustralia/Dispersal.jl.git"
 uuid = "8797f018-3445-11e9-3969-c13eb94a0661"
 version = "0.7.0"
 
@@ -1350,7 +1352,9 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[deps.ModelParameters]]
 deps = ["AbstractNumbers", "ConstructionBase", "Flatten", "PrettyTables", "Setfield", "Tables"]
-path = "/home/raf/.julia/dev/ModelParameters"
+git-tree-sha1 = "92bf069ddcb1625c29b1a204e7ea57d183205869"
+repo-rev = "makie"
+repo-url = "https://github.com/rafaqz/ModelParameters.jl.git"
 uuid = "4744a3fa-6c31-4707-899e-a3298e4618ad"
 version = "0.4.2"
 weakdeps = ["Makie"]
