@@ -3,11 +3,6 @@ function hanski_sim(model)
     P1 = P
     Ns1 = Ns
     @inbounds for i in tspan
-        # ks1 = if i > 3200 && i < 3200 || i > 6200 && i < 6200
-        #     2 .* ks # mast year
-        # else
-        #     ks
-        # end
         Ns2 = hanski_prey_timestep(P1, Ns1, ks, α, model)::typeof(Ns)
         P1 = hanski_predator_timestep(P1, Ns1, model)::typeof(P)
         Ns1 = Ns2
@@ -25,6 +20,7 @@ end
 @inline growth(N::Number, k::Number, r::Number, Ns_x, α_x) =
     r * N * (1 - (N + sum(α_x .* Ns_x)) / k)
 
+# TODO generate this
 const OTHER_INDS = ((2, 3), (1, 3), (1, 2))
 
 # N-prey predation model
@@ -61,5 +57,5 @@ end
     else
         max(zero(P), P + -d_high * P * t)
     end
-    P1 + 0.05 * (rand() - 0.5) * P1
+    P1 + model.stochasticity * (rand() - 0.5) * P1
 end
