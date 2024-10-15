@@ -102,13 +102,14 @@ lc_ks = (
     urban     = NamedVector(norway_rat=200.0, black_rat=150.0, mouse=200.0),
 )
 
-hanski_rule = let lc=Aux{:lc}(), lc_ks=stripparams(lc_ks), model=model
+hanski_rule = let lc=Aux{:lc}(), lc_ks=stripparams(lc_ks), summplements=supplements, model=model
     Cell{Tuple{:cats,:rodents}}() do data, (P, Ns), I
         lc_i = get(data, lc, I)
         lc_i == 0 && return zero(P), zero(Ns)
         ks = lc_ks[lc_i]
         Ns1 = hanski_prey_timestep(P, Ns, ks, model.α, model)::typeof(Ns)
-        P1 = hanski_predator_timestep(P, Ns, model)::typeof(P)
+        supplement = supplements[lc_i]
+        P1 = hanski_predator_timestep(P, Ns, supplement, model)::typeof(P)
         return P1, Ns1
     end
 end
@@ -140,16 +141,18 @@ ruleset = Ruleset(hanski_rule, rodent_spread_rule, cat_spread_rule, rodent_allee
 rodents = Raster(fill(ks ./ 2, X(64), Y(64)))
 cats = map(_ -> 0.01, rodents)
 tspan = 1:1000
-classes = (
-    >(0.65) => 1,
-    0.45..0.65 => 2,
-    <=(0.45) => 3,
-)
-mpd = Raster(rand(MidpointDisplacement(0.4), dims(rodents)))
-lc = Rasters.classify(mpd, classes; others=0, missingval=0)
+lcs = map(0:0.1:0.2) do x
+    a = 0.35 + x
+    b = 0.55 + x
+    classes = >(b) => 1, a .. b => 2, <=(a) => 3
+    mpd = Raster(rand(MidpointDisplacement(0.4), dims(rodents)))
+    Rasters.classify(mpd, classes; others=0, missingval=0)
+end
 tspan=1:1000
+lc_mode = 1
 init = (; cats=parent(cats), rodents=parent(rodents))
-# output = ResultOutput(init; tspan, aux=(; lc=parent(lc)), boundary=Wrap())
+
+# output = ResultOutput(init; tspan, aux=(; lc=parent(lcs[lc_mode])), boundary=Wrap())
 # sim!(output, ruleset; printframe=true)
 
 # Makie.heatmap(output[end].cats)
@@ -158,7 +161,7 @@ init = (; cats=parent(cats), rodents=parent(rodents))
 output = MakieOutput(init; 
     ruleset, tspan, fps=100, 
     printframe=true, 
-    aux=(; lc=parent(lc)), 
+    aux=(; lc=parent(lcs[lc_mode])), 
     store=true, 
     ncolumns=2,
 ) do x
@@ -168,7 +171,7 @@ output = MakieOutput(init;
     c = image!(cat_ax, x.frame.cats; colormap=:magma, interpolate=false, colorrange=(0.0, 0.05))
     Colorbar(x.layout[I..., Right()], c; flipaxis=false)
     lc_ax = Axis(x.layout[1, 2]; xlabel="land cover")
-    image!(lc_ax, lc; colormap=:batlow, interpolate=false, colorrange=(0, 4))
+    image!(lc_ax, lcs[lc_mode]; colormap=:batlow, interpolate=false, colorrange=(0, 4))
     rodent_axs = map(1:length(ks), propertynames(ks), ks) do i, name, k
         I = inds[i + 1]
         rodent_ax = Axis(x.layout[I...]; xlabel=string(name))
