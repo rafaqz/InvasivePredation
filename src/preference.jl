@@ -2,7 +2,7 @@
 function find_mass_distribution(x, p)
     μ, σ = x
     mass_distibution = LogNormal(log(μ), σ)
-    halfstep = step(p.bin_center_mass) / 2
+    halfstep = (p.bin_center_mass[2] - p.bin_center_mass[1]) / 2
     predicted_rate = cdf.(mass_distibution, p.bin_center_mass .+ halfstep) .-
         cdf.(mass_distibution, p.bin_center_mass .- halfstep)
     # Get the rest of the distribution
@@ -152,9 +152,12 @@ function fit_distributions_to_literature()
     female_norway_rat_trap_rate = [0.14, 0.33, 0.34, 0.19, 0.0]
     norway_rat_trap_rate = (male_norway_rat_trap_rate .+ female_norway_rat_trap_rate) ./ 2
 
-    # Estimated from shifted rat samples
-    mouse_bin_center_mass = 5:10:55
-    mouse_trap_rate = [0.08, 0.20, 0.26, 0.31, 0.14, 0.01]
+    # Laurie 1945
+    mouse_df = CSV.read(joinpath(InvasivePredation.basepath, "tables", "mouse_weights.csv"), DataFrame)
+    mouse_bin_center_mass = mouse_df.mass .+ ((mouse_df.mass[2] - mouse_df.mass[1]) / 2)
+    # The urban populaiton is most "natural" environment recorded
+    mouse_trap_count = mouse_df.urban_male .+ mouse_df.urban_female
+    mouse_trap_rate = mouse_trap_count ./ sum(mouse_trap_count)
 
     trap_rates = (;
         norway_rat=norway_rat_trap_rate,
