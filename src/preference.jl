@@ -1,5 +1,5 @@
 
-function find_mass_distribution(x, p)
+function find_mass_residuals(x, p)
     μ, σ = x
     mass_distibution = LogNormal(log(μ), σ)
     halfstep = (p.bin_center_mass[2] - p.bin_center_mass[1]) / 2
@@ -7,18 +7,16 @@ function find_mass_distribution(x, p)
         cdf.(mass_distibution, p.bin_center_mass .- halfstep)
     # Get the rest of the distribution
     empty_upper = cdf(mass_distibution, Inf) - cdf(mass_distibution, last(p.bin_center_mass) + 1halfstep)
-    residuals = p.trap_rate .- predicted_rate
     # Return the sum of squared residuals including the empty top end
-    return sum(residuals .^ 2) + empty_upper .^ 2
+    return sum((p.trap_rate .- predicted_rate) .^ 2) + empty_upper .^ 2
 end
 
-function find_predation_preference(x, p)
+function find_predation_residuals(x, p)
     μ, σ = x
     cat_preference = LogNormal(log(μ), σ);
     predation_pds = pdf.((cat_preference,), p.bin_center_mass) .* p.trapped_rats
     killed_means = p.killed_rats ./ sum(p.killed_rats)
     predicted_means = predation_pds ./ sum(predation_pds)
-
     return sum((killed_means .- predicted_means) .^ 2)
 end
 
@@ -44,8 +42,7 @@ end
 
 function optimize_mass_distribution(p)
     x0 = [1.0, 1.0]
-    find_mass_distribution(x0, p)
-    prob = OptimizationProblem(find_mass_distribution, x0, p;
+    prob = OptimizationProblem(find_mass_residuals, x0, p;
         lb=[0.0, 0.0],
         ub=[1000.0, 1000.0]
     )
@@ -56,8 +53,8 @@ end
 
 function optimize_predation_preference(p)
     x0 = [1.0, 1.0]
-    find_predation_preference(x0, p)
-    prob = OptimizationProblem(find_predation_preference, x0, p;
+    find_predation_residuals(x0, p)
+    prob = OptimizationProblem(find_predation_residuals, x0, p;
         lb=[0.0, 0.0],
         ub=[500.0, 10.0]
     )
@@ -121,7 +118,10 @@ function fit_distributions_to_literature()
     norway_rat_params = (; trapped_rats, killed_rats, bin_center_mass=bin_center_100)
 
     # Optimise a LogNormal distribution
-    cat_mass_preference = optimize_predation_preference(norway_rat_params)
+    distribution = optimize_predation_preference(norway_rat_params)
+    x = [distribution.μ, distribution.σ]
+    residuals = find_predation_residuals(x, norway_rat_params)
+    cat_mass_preference = (; distribution, residuals)
 
     # From the diet review paper
     # these are means prey size accross whole studies
@@ -175,7 +175,7 @@ function fit_distributions_to_literature()
     end
 
     rodent_stats =  map(bin_center_masses, trap_rates) do bcm, tr
-        calculate_predation_rate(cat_mass_preference, bcm, tr)
+        calculate_predation_rate(cat_mass_preference.distribution, bcm, tr)
     end
 
     return (; cat_mass_preference, rodent_mass_distributions, rodent_stats, norway_rat_params, norway_rat_studies)

@@ -10,6 +10,8 @@ using Setfield
 using Rasters
 using NCDatasets
 using NeutralLandscapes
+using Colors
+using ColorVectorSpace
 GLMakie.activate!()
 
 using InvasivePredation
@@ -102,7 +104,9 @@ lc_ks = (
     urban     = NamedVector(norway_rat=200.0, black_rat=150.0, mouse=200.0),
 )
 
-hanski_rule = let lc=Aux{:lc}(), lc_ks=stripparams(lc_ks), summplements=supplements, model=model
+supplements = map(x -> x * u"kJ*d^-1", (native=0.0, cleared=0.0, urban=1.0))
+
+hanski_rule = let lc=Aux{:lc}(), lc_ks=stripparams(lc_ks), supplements=supplements, model=model
     Cell{Tuple{:cats,:rodents}}() do data, (P, Ns), I
         lc_i = get(data, lc, I)
         lc_i == 0 && return zero(P), zero(Ns)
@@ -152,8 +156,8 @@ tspan=1:1000
 lc_mode = 1
 init = (; cats=parent(cats), rodents=parent(rodents))
 
-# output = ResultOutput(init; tspan, aux=(; lc=parent(lcs[lc_mode])), boundary=Wrap())
-# sim!(output, ruleset; printframe=true)
+output = ResultOutput(init; tspan, aux=(; lc=parent(lcs[lc_mode])), boundary=Wrap())
+sim!(output, ruleset; printframe=true)
 
 # Makie.heatmap(output[end].cats)
 # tspan = 1800.0:t/u"yr":2000.0
@@ -165,27 +169,40 @@ output = MakieOutput(init;
     store=true, 
     ncolumns=2,
 ) do x
+    colors = (RGBA(0.5, 0.5, 0.0), RGBA(0.5, 0.0, 0.5), RGBA(0.0, 0.5, 0.5))
     inds = [(1, 1), (2, 1), (2, 2), (2, 3)]
     I = inds[1]
-    cat_ax = Axis(x.layout[1, 1]; xlabel="cat")
+    cat_ax = Axis(x.layout[1, 2]; xlabel="cat")
     c = image!(cat_ax, x.frame.cats; colormap=:magma, interpolate=false, colorrange=(0.0, 0.05))
     Colorbar(x.layout[I..., Right()], c; flipaxis=false)
-    lc_ax = Axis(x.layout[1, 2]; xlabel="land cover")
-    image!(lc_ax, lcs[lc_mode]; colormap=:batlow, interpolate=false, colorrange=(0, 4))
-    rodent_axs = map(1:length(ks), propertynames(ks), ks) do i, name, k
-        I = inds[i + 1]
-        rodent_ax = Axis(x.layout[I...]; xlabel=string(name))
-        A = rebuild(getindex.(rodents, i); missingval=0.0)
-        rodent_obs = Observable{Raster}(A)
-        on(x.frame.rodents) do rodents
-            rodent_obs[] .= getindex.(rodents, i)
-            notify(rodent_obs)
-        end
-        r = image!(rodent_ax, rodent_obs; colormap=:viridis, interpolate=false, colorrange=(0.0, 2k))
-        Colorbar(x.layout[I..., Right()], r; flipaxis=false)
-        rodent_ax
+    lc_ax = Axis(x.layout[1, 1]; xlabel="land cover")
+    image!(lc_ax, lcs[lc_mode]; colormap=:viridis, interpolate=false, colorrange=(0, 4))
+    # rodent_axs = map(1:length(ks), propertynames(ks), ks) do i, name, k
+    #     I = inds[i + 1]
+    #     rodent_ax = Axis(x.layout[I...]; xlabel=string(name))
+    #     A = rebuild(getindex.(rodents, i); missingval=0.0)
+    #     rodent_obs = Observable{Raster}(A)
+    #     on(x.frame.rodents) do rodents
+    #         rodent_obs[] .= getindex.(rodents, i)
+    #         notify(rodent_obs)
+    #     end
+    #     r = image!(rodent_ax, rodent_obs; colormap=:viridis, interpolate=false, colorrange=(0.0, 2k))
+    #     Colorbar(x.layout[I..., Right()], r; flipaxis=false)
+    #     rodent_ax
+    # end
+    maxs = Ref(ks)
+    rodent_ax = Axis(x.layout[1, 3]; xlabel="Rodents")
+    rgb(x) = sum(min.(1.0, x ./ maxs[]) .* colors)
+    A = rebuild(map(rgb, rodents); missingval=RGBA(0.0, 0.0, 0.0, 0.0))
+    rodent_obs = Observable{Raster}(A)
+    on(x.frame.rodents) do rodents
+        maxs[] = max.(maximum(rodents), maxs[])
+        rodent_obs[] .= rgb.(rodents)
+        notify(rodent_obs)
     end
-    linkaxes!(cat_ax, lc_ax, rodent_axs...)
+    r = image!(rodent_ax, rodent_obs; interpolate=false)
+    # Colorbar(x.layout[I..., Right()], r; flipaxis=false)
+    linkaxes!(cat_ax, lc_ax, rodent_ax)
     nothing
 end
 

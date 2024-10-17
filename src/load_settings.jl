@@ -12,7 +12,6 @@ function load_settings()
             energy_content=6.24u"kJ/g",
             carrycap=R(rodent_df.carrycap) .* u"ha^-1",
             rmax=R(rodent_df.rmax) .* u"yr^-1",
-            colors=R([:red, :lightblue, :yellow]),
             names=rodent_names,
             labels=titlecase.(replace.(rodent_df.name, ("_" => " ",)))
         ),
