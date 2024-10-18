@@ -58,14 +58,30 @@ d_high = 0.2 / t
 # Ncrit = 4 / u"d"
 # Ns1 = 2 .* Ns
 
+energy_intake = (;
+    norway_rat=8u"kJ*d^-1",
+    black_rat=5u"kJ*d^-1",
+    mouse=2u"kJ*d^-1",
+)
+
+diet_overlap = (;
+    nr_br=0.8,
+    nr_m=0.7,
+    br_m=0.9,
+)
+
+dio = diet_overlap
+ei = energy_intake
+
 # How can we be more systematic about these
-α12 = Param(1.0; label="α R.n R.r", bounds=(0.0, 2.0))
-α13 = Param(1.5; label="α R.n M.m", bounds=(0.0, 2.0))
-α21 = Param(0.3; label="α R.r R.n", bounds=(0.0, 2.0))
-α23 = Param(1.0; label="α R.r M.m", bounds=(0.0, 2.0))
-α31 = Param(0.3; label="α M.m R.n", bounds=(0.0, 2.0))
-α32 = Param(0.2; label="α M.m R.r", bounds=(0.0, 2.0))
-α = (
+α12 = Param(ei.norway_rat / ei.black_rat * dio.nr_br; label="α R.n R.r", bounds=(0.0, 2.0))
+α13 = Param(ei.norway_rat / ei.mouse * dio.nr_m; label="α R.n M.m", bounds=(0.0, 2.0))
+α21 = Param(ei.black_rat / ei.norway_rat * dio.nr_br; label="α R.r R.n", bounds=(0.0, 2.0))
+α23 = Param(ei.black_rat / ei.mouse * dio.br_m; label="α R.r M.m", bounds=(0.0, 2.0))
+α31 = Param(ei.mouse / ei.norway_rat * dio.nr_m; label="α M.m R.n", bounds=(0.0, 2.0))
+α32 = Param(ei.mouse / ei.black_rat * dio.br_m; label="α M.m R.r", bounds=(0.0, 2.0))
+
+α = (;
     norway_rat=(α21, α31),
     black_rat=(α12, α32),
     mouse=(α13, α23),
