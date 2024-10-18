@@ -20,7 +20,6 @@ basepath = InvasivePredation.basepath
 
 # Data from Childs 1986
 (; cat, rodent) = InvasivePredation.load_settings()
-
 (; cat_mass_preference, rodent_stats, rodent_mass_distributions, norway_rat_params, norway_rat_studies) = 
     fit_distributions_to_literature()
 
@@ -39,10 +38,15 @@ fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     # colors = #[:magenta, :cyan, :yellow]
     colors = [:red, :lightblue, :yellow]
     fig = Figure(; size=(600, 600));
-    ax1 = Axis(fig[1, 1]; ylabel="Fraction trapped and predated")
-    ax2 = Axis(fig[2, 1]; xlabel="Prey size", ylabel="Reported means")
-    ax3 = Axis(fig[3, 1]; ylabel="Probability density")
-    axs = ax1, ax2, ax3
+    ax1 = Axis(fig[1:2, 1]; ylabel="Fraction trapped\nand predated")
+    ax2 = Axis(fig[3, 1]; xlabel="Prey size", ylabel="Probability\ndensity")
+    ax3 = Axis(fig[4, 1]; ylabel="Probability\ndensity")
+    ax4 = Axis(fig[-1:0, 1];
+        xticks=100:100:700,
+        xlabel="Rat mass",
+        ylabel="Fraction of\ntotal",
+    )
+    axs = ax1, ax2, ax3, ax4
     hidexdecorations!.(axs[1:2]; grid=false)
     hidespines!.(axs)
     linkxaxes!(axs...)
@@ -64,23 +68,11 @@ fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     l = Makie.plot!(ax2, cat_mass_preference.distribution; color=:black, label="Model of prefered rodent mass")
     l = Makie.vlines!(ax2, exp(cat_mass_preference.distribution.μ); color=:grey, linestyle=:dash, label="Mean preferred mass")
     d = Makie.density!(ax3, cat.mean_prey_sizes; color=:grey, label="Literature mean prey sizes")
-    axislegend.(axs; position=:rt)
-    Makie.xlims!.(axs, ((0, 600),))
-    fig
-end
+    Makie.xlims!.(axs, ((0, 700),))
 
-save(joinpath(basepath, "images/cat_rodent_predation.png"), fig)
-
-fig = let
     alpha = 0.6
-    fig = Figure(; size=(500, 300))
-    ax = Axis(fig[1, 1];
-        xticks=100:100:700,
-        xlabel="Rat mass",
-        ylabel="Fraction of total",
-    )
-    hidespines!(ax)
-    colors = [:violetred1, :deepskyblue]
+    hidespines!(ax4)
+    colors = [:darkred, :red]
     nrs = norway_rat_studies
     gl = nrs.glass.trapped ./ sum(nrs.glass.trapped)
     ch = nrs.childs.trapped ./ sum(nrs.childs.trapped)
@@ -89,28 +81,30 @@ fig = let
     height = vcat(gl, ch)
     group = vcat(gl_group, ch_group)
     category = vcat(nrs.bin_center_100, nrs.bin_center_100)
-    Makie.barplot!(ax, category, height; 
+    Makie.barplot!(ax4, category, height; 
+        label=["Trapped Childs", "Trapped Glass"], 
         color=map(x -> (x, alpha), colors[group]),
         dodge=group,
     )
 
-    Makie.lines!(ax, nrs.bin_center_100, nrs.glass.killed ./ sum(nrs.glass.killed); 
-        label="Glass killed", 
+    Makie.lines!(ax4, nrs.bin_center_100, nrs.glass.killed ./ sum(nrs.glass.killed); 
+        label="Predated Glass", 
         color=(colors[1], alpha),
     )
-    Makie.lines!(ax, nrs.bin_center_25, nrs.childs.killed_25 ./ sum(nrs.childs.killed_25); 
-        label="Childs killed", 
+    Makie.lines!(ax4, nrs.bin_center_25, nrs.childs.killed_25 ./ sum(nrs.childs.killed_25); 
+        label="Predated Childs", 
         color=(colors[2], alpha),
     )
 
     labels = ["Trapped Childs 1986", "Trapped Glass 2009", 
-              "Killed Childs 1986", "Killed Glass 2009"]
+              "Predated Childs 1986", "Predated Glass 2009"]
     elements = vcat(
         [PolyElement(; polycolor=(colors[i], alpha)) for i in 1:2],
         [LineElement(; linecolor=(colors[i], alpha)) for i in 1:2],
     )
     title = ""
-    Legend(fig[1, 2], elements, labels, title; framevisible=false)
+    # Legend(fig[-1:0, 1], elements, labels, title; framevisible=false)
+    axislegend.(axs[1:4]; position=:rt)
 
     fig
 end
