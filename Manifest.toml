@@ -2,7 +2,7 @@
 
 julia_version = "1.10.5"
 manifest_format = "2.0"
-project_hash = "4732464b96a39b09c3e3a8269efb2b7f3c61bdf0"
+project_hash = "29835675487b93c0dda2e8f0451a8ea551eaf1c1"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "eea5d80188827b35333801ef97a40c2ed653b081"
@@ -2246,7 +2246,7 @@ weakdeps = ["ChainRulesCore", "InverseFunctions"]
 
 [[deps.Stencils]]
 deps = ["Adapt", "ConstructionBase", "Dates", "KernelAbstractions", "LinearAlgebra", "Random", "SparseArrays", "StaticArrays", "UnicodeGraphics"]
-git-tree-sha1 = "ce65dced844518de87f9e444245254ebdd5a1540"
+path = "/home/raf/.julia/dev/Stencils"
 uuid = "264155e8-78a8-466a-aa59-c9b28c34d21a"
 version = "0.3.1"
 

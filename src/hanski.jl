@@ -49,7 +49,7 @@ end
     βs = Ds[1] ./ Ds
     Nβs = sum(Ns .* βs)
     # Calculate carrycap `q` from yield and energy requirement
-    q = convert(typeof(P), (sum(Ns .* ys .* Es) + supplement) / e)
+    q = convert(typeof(P), (sum(Ns .* ys .* Es)) / e + supplement*u"kJ/d"  / model.cat.energy_intake)
     Preproduction = 1.5P # ??
     # If prey are above the breeding threshold
     P1 = if q > Preproduction # Use supportable population as the threshold rather than Ncrit

@@ -19,16 +19,20 @@ function get_max_yield_fraction()
 
         return (; std=rodent_params.mouse.std, fracs..., cats..., pops..., takes...)
     end |> DataFrame
-    max_yield_fraction = NamedVector{Tuple(rodent.names)}(
-        collect(stochastic_rates[1, map(x -> Symbol(:frac_, x), rodent.names)])
-    ) .* 12u"yr^-1"
+    max_yield_fraction = get_yield_fraction(stochastic_rates, rodent, 1)
     return (; stochastic_rates, max_yield_fraction)
+end
+
+function get_yield_fraction(df, rodent, i)
+    NamedVector{Tuple(rodent.names)}(
+        collect(df[1, map(x -> Symbol(:frac_, x), rodent.names)])
+    ) .* 12u"yr^-1"
 end
 
 function get_cat_energetics(cat, rodent, rodent_stats)
     mean_preferred_mass = NamedVector(map(r -> r.mean_predation_mass * u"g", rodent_stats))
     assimilated_energy = mean_preferred_mass .* rodent.energy_content .* cat.assimilation_efficiency .* cat.fraction_eaten
-    individuals_per_cat = cat.energy_intake ./ assimilated_energy ./ cat.fraction_eaten 
+    individuals_per_cat = cat.energy_intake ./ assimilated_energy
     return (; assimilated_energy, individuals_per_cat, mean_preferred_mass)
 end
 
