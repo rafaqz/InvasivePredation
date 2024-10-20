@@ -1,10 +1,13 @@
-function hanski_sim(model)
-    (; P, Ns, P_timeline, Ns_timeline, ks, α, tspan) = model
+function hanski_sim(model;
+    P_timeline=Vector{typeof(model.P)}(undef, length(model.tspan)),
+    Ns_timeline=Vector{typeof(model.Ns)}(undef, length(model.tspan)),
+)
+    (; P, Ns, ks, α, tspan) = model
     P1 = P
     Ns1 = Ns
-    @inbounds for i in tspan
+    @inbounds for (i, t) in enumerate(tspan)
         Ns2 = hanski_prey_timestep(P1, Ns1, ks, α, model)::typeof(Ns)
-        P1 = hanski_predator_timestep(P1, Ns1, model.supplement, model)::typeof(P)
+        P1 = hanski_predator_timestep(P1, Ns1, model)::typeof(P)
         Ns1 = Ns2
         P_timeline[i] = P1
         Ns_timeline[i] = Ns1
@@ -44,12 +47,12 @@ end
 # Predator growth rate is independent from hunting
 # the breeding threshold is like perception of
 # excess rather than current intake
-@inline function hanski_predator_timestep(P, Ns, supplement, model)
+@inline function hanski_predator_timestep(P, Ns, model)
     (; v, e, d_high, ys, Es, Ds, t) = model
     βs = Ds[1] ./ Ds
     Nβs = sum(Ns .* βs)
     # Calculate carrycap `q` from yield and energy requirement
-    q = convert(typeof(P), (sum(Ns .* ys .* Es)) / e + supplement*u"kJ/d"  / model.cat.energy_intake)
+    q = convert(typeof(P), (sum(Ns .* ys .* Es)) / e)
     Preproduction = 1.5P # ??
     # If prey are above the breeding threshold
     P1 = if q > Preproduction # Use supportable population as the threshold rather than Ncrit
