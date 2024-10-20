@@ -23,15 +23,15 @@ s = InvasivePredation.load_settings()
 
 # Stochasticity reduces yield
 fig = let
-    fig = Figure(; title="Effects of monthly stochasticity on optimal hunting yields", size=(600, 800));
-    labels = ["Optimal fraction hunted per month", "Supported cats per km^2", "Mean rodents per hectare"]
+    fig = Figure(; size=(450, 600));
+    labels = ["Optimal fraction\nhunted per month", "Supported cats\n per km^2", "Mean rodents\n per hectare"]
     yl = ((0, 0.2), (0, 1.5), (0, 40))
     x = stochastic_rates.std
     xticks = 0:0.4:4.0
     axs = map(enumerate(labels)) do (i, ylabel)
         ax = if i == 3
             Axis(fig[i, 1];
-                xlabel="Scalar of standard deviation of hunting stochasticity", 
+                xlabel="Scalar of standard deviation\nof hunting stochasticity", 
                 # xlabel="seasonality", 
                 ylabel, 
                 xticks,
@@ -44,8 +44,8 @@ fig = let
                 xticklabelsvisible=false
             )
         end
+        simplify!(ax)
         ylims!(ax, yl[i])
-        # hidespines!(ax)
         ax
     end
     linkxaxes!(axs...)
@@ -53,7 +53,7 @@ fig = let
     fracs = stochastic_rates[:, map(x -> Symbol(:frac_, x), rodent.names)]
     cats = stochastic_rates[:, map(x -> Symbol(:cat_, x), rodent.names)]
     rodent_plots = map(1:3) do i
-        color = s.rodent.colors[i]
+        color = InvasivePredation.rodent_colors[i]
         label = s.rodent.labels[i]
         p1 = Makie.lines!(axs[1], x, fracs[:, i];
             label, color

@@ -159,13 +159,14 @@ fig = let
     for i in 1:3
         m = @set model.ks = lc_ks[i]
         # Label
-        text_ax = Axis(fig[0, i])
+        text_ax = Axis(fig[0, i]; )
         xlims!(text_ax, (0, 1))
         ylims!(text_ax, (0, 1))
         simplify!(text_ax)
         text!(text_ax, 0.0, 0.0; text=scenario_labels[i], fontsize=20)
         # Populations
         ax = Axis(fig[1, i]; yscale=log10, xlabel=lc_labels[i])
+        ylims!(ax, (0.001, 900))
         results = hanski_sim(m)
         map(3:-1:1) do r
             rodent_timeline = getindex.(last(results), r) .+ 0.000000001
@@ -303,20 +304,24 @@ fig = let ylabelsize=20
     grays = cgrad(ColorSchemes.grayC[((0:1:3) ./ 3)[1:3]], 3; categorical=true)
     r_maxs = [60.0, 60.0, 300.0]
     r_ticks = [0:10:50, 0:10:50, 0:50:250]
+    colorbar_kw = (;
+        flipaxis=true,
+        spinewidth=0,
+        width=20,
+    )
     all_axs = map(enumerate(outputs)) do (j, output)
         # Labels
         text_ax = Axis(fig[0, j])
         xlims!(text_ax, (0, 1))
         ylims!(text_ax, (0, 1))
         simplify!(text_ax)
-        text!(text_ax, 0.0, 0.0; text=labels[j], fontsize=20)
+        text!(text_ax, 0.0, 0.0; text=scenario_labels[j], fontsize=20)
         # Landcover
         lc_ax = Axis(fig[1, j]; ylabel="Land Cover", ylabelsize)
         lc_im = image!(lc_ax, lcs[j]; colormap=grays, interpolate=false, colorrange=(0.5, 3.5))
         j == 3 && Colorbar(fig[1, j, Right()], lc_im;
-            flipaxis=true,
-            spinewidth=0,
             ticks=(1:1:3, lc_labels),
+            colorbar_kw...
         )
         # Rodents
         rodent_axs = map(1:length(lc_ks[1]), propertynames(lc_ks[1]), r_maxs) do i, name, max
@@ -332,9 +337,8 @@ fig = let ylabelsize=20
                 colorrange=(0.0, max),
             )
             j == 3 && Colorbar(fig[I..., Right()], r;
-                flipaxis=true,
                 ticks=r_ticks[i],
-                spinewidth=0,
+                colorbar_kw...
             )
             rodent_ax
         end
@@ -346,9 +350,8 @@ fig = let ylabelsize=20
             colorrange=(0.0, 0.07),
         )
         j == 3 && Colorbar(fig[5, j, Right()], c;
-            flipaxis=true,
-            spinewidth=0,
             ticks=collect(0.01:0.01:0.06),
+            colorbar_kw...
         )
         axs = (cat_ax, lc_ax, rodent_axs...)
         # No boxes or ticks

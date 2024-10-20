@@ -34,45 +34,29 @@ basepath = InvasivePredation.basepath
 # Makie.plot(Normal(1, 1); color=:black)
 # map(sum, yields)
 
+simplify!(ax; kw...) = (hidedecorations!(ax; kw...); hidespines!(ax))
+
 fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     # colors = #[:magenta, :cyan, :yellow]
-    colors = [:red, :lightblue, :yellow]
+    rows = [-1:0, 1:2, 3, 4]
+    colors = InvasivePredation.rodent_colors
     fig = Figure(; size=(600, 600));
-    ax1 = Axis(fig[1:2, 1]; ylabel="Fraction trapped\nand predated")
-    ax2 = Axis(fig[3, 1]; xlabel="Prey size", ylabel="Probability\ndensity")
-    ax3 = Axis(fig[4, 1]; ylabel="Probability\ndensity")
-    ax4 = Axis(fig[-1:0, 1];
+    ax1 = Axis(fig[rows[1], 1];
         xticks=100:100:700,
         xlabel="Rat mass",
         ylabel="Fraction of\ntotal",
     )
+    ax2 = Axis(fig[rows[2], 1]; ylabel="Fraction trapped\nand predated")
+    ax3 = Axis(fig[rows[3], 1]; xlabel="Prey size", ylabel="Probability\ndensity")
+    ax4 = Axis(fig[rows[4], 1]; ylabel="Probability\ndensity")
     axs = ax1, ax2, ax3, ax4
     hidexdecorations!.(axs[1:2]; grid=false)
     hidespines!.(axs)
     linkxaxes!(axs...)
     alpha = 0.7
-    b1, b2, b3 = map(1:3, (norway_rat, black_rat, mouse)) do i, rat
-        Makie.lines!(ax1, rat.bin_center_mass, rat.trap_rate;
-            color=(colors[i], alpha), label=rodent.labels[i] * " trapped sizes",
-        )
-    end
-    # m1, m2, m3 = map(1:3, rodent_mass_distributions) do i, rat
-    #     Makie.lines!(ax2, rat;
-    #         color=(colors[i], alpha), label=rodent.labels[i] * " LogNormal model",
-    #     )
-    # end
-    b4 = Makie.lines!(ax1, norway_rat_params.bin_center_mass, norway_rat_params.killed_rats ./ sum(norway_rat_params.killed_rats);
-        color=(:black, alpha), label="Norway rat predated mass",
-    )
-
-    l = Makie.plot!(ax2, cat_mass_preference.distribution; color=:black, label="Model of prefered rodent mass")
-    l = Makie.vlines!(ax2, exp(cat_mass_preference.distribution.μ); color=:grey, linestyle=:dash, label="Mean preferred mass")
-    d = Makie.density!(ax3, cat.mean_prey_sizes; color=:grey, label="Literature mean prey sizes")
-    Makie.xlims!.(axs, ((0, 700),))
-
-    alpha = 0.6
-    hidespines!(ax4)
-    colors = [:darkred, :red]
+    # A
+    hidespines!(ax1)
+    nr_colors = ColorSchemes.tempo[[0.95, 0.8]]
     nrs = norway_rat_studies
     gl = nrs.glass.trapped ./ sum(nrs.glass.trapped)
     ch = nrs.childs.trapped ./ sum(nrs.childs.trapped)
@@ -81,30 +65,64 @@ fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     height = vcat(gl, ch)
     group = vcat(gl_group, ch_group)
     category = vcat(nrs.bin_center_100, nrs.bin_center_100)
-    Makie.barplot!(ax4, category, height; 
+    Makie.barplot!(ax1, category, height; 
         label=["Trapped Childs", "Trapped Glass"], 
-        color=map(x -> (x, alpha), colors[group]),
+        color=map(x -> (x, alpha), nr_colors[group]),
         dodge=group,
     )
-
-    Makie.lines!(ax4, nrs.bin_center_100, nrs.glass.killed ./ sum(nrs.glass.killed); 
+    Makie.lines!(ax1, nrs.bin_center_100, nrs.glass.killed ./ sum(nrs.glass.killed); 
         label="Predated Glass", 
-        color=(colors[1], alpha),
+        color=(ColorSchemes.solar[0.5], alpha),
     )
-    Makie.lines!(ax4, nrs.bin_center_25, nrs.childs.killed_25 ./ sum(nrs.childs.killed_25); 
+    Makie.lines!(ax1, nrs.bin_center_25, nrs.childs.killed_25 ./ sum(nrs.childs.killed_25); 
         label="Predated Childs", 
-        color=(colors[2], alpha),
+        color=(ColorSchemes.solar[0.8], alpha),
     )
-
     labels = ["Trapped Childs 1986", "Trapped Glass 2009", 
               "Predated Childs 1986", "Predated Glass 2009"]
     elements = vcat(
-        [PolyElement(; polycolor=(colors[i], alpha)) for i in 1:2],
-        [LineElement(; linecolor=(colors[i], alpha)) for i in 1:2],
+        [PolyElement(; polycolor=(nr_colors[i], alpha)) for i in 1:2],
+        [LineElement(; linecolor=(nr_colors[i], alpha)) for i in 1:2],
     )
-    title = ""
-    # Legend(fig[-1:0, 1], elements, labels, title; framevisible=false)
-    axislegend.(axs[1:4]; position=:rt)
+
+    # B
+    b1, b2, b3 = map(1:3, (norway_rat, black_rat, mouse)) do i, rat
+        Makie.lines!(ax2, rat.bin_center_mass, rat.trap_rate;
+            color=(colors[i], alpha), label=rodent.labels[i] * " trapped sizes",
+        )
+    end
+    # m1, m2, m3 = map(1:3, rodent_mass_distributions) do i, rat
+    #     Makie.lines!(ax2, rat;
+    #         color=(colors[i], alpha), label=rodent.labels[i] * " LogNormal model",
+    #     )
+    # end
+    b4 = Makie.lines!(ax2, norway_rat_params.bin_center_mass, norway_rat_params.killed_rats ./ sum(norway_rat_params.killed_rats);
+        color=(ColorSchemes.solar[0.7], alpha), label="Norway rat predated mass",
+    )
+
+    # C
+    l = Makie.plot!(ax3, cat_mass_preference.distribution; color=:black, label="Prefered rodent mass")
+    l = Makie.vlines!(ax3, exp(cat_mass_preference.distribution.μ); color=:grey, linestyle=:dash, label="Mean")
+    # D
+    d = Makie.density!(ax4, cat.mean_prey_sizes; color=:grey, label="Literature mean\nprey sizes")
+    Makie.xlims!.(axs, ((0, 700),))
+    # Labels
+    for (i, text) in enumerate(["A", "B", "C", "D"])
+        text_ax = Axis(fig[rows[i], 0])
+        xlims!(text_ax, (0, 1)); ylims!(text_ax, (0, 1)); simplify!(text_ax)
+        text!(text_ax, 0.0, 0.0; text, fontsize=20)
+    end
+    colsize!(fig.layout, 0, Relative(0.05))
+    # Legends
+    legend_titles = ["", "", "Model", "Prey sizes"] 
+    for i in 1:4
+        Legend(fig[rows[i], 2], axs[i]; 
+            framevisible=false, 
+            halign=:left,
+            labelsize=12,
+            title=legend_titles[i]
+        )
+    end
 
     fig
 end

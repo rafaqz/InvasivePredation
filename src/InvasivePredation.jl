@@ -7,6 +7,7 @@ using OptimizationOptimJL
 using OptimizationNLopt
 using Unitful
 using LandscapeChange
+using ColorSchemes
 using CSV
 using DataFrames
 
@@ -29,5 +30,6 @@ include("load_settings.jl")
 
 const cat_color = ColorSchemes.solar[0.7]
 const rodent_colors = ColorSchemes.tempo[[0.9, 0.55, 0.2]]
+
 
 end
