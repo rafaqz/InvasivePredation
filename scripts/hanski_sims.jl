@@ -25,16 +25,6 @@ alphapath = joinpath(basepath, "tables/alpha")
 (; stochastic_rates, max_yield_fraction) = InvasivePredation.get_max_yield_fraction()
 (; assimilated_energy, individuals_per_cat) = InvasivePredation.get_cat_energetics(cat, rodent, rodent_stats)
 
-# aggfactor = 4
-# lc_path = joinpath(basepath, "data/lc_predictions_mus.nc")
-# lc = RasterStack(lc_path) |>
-#     x -> Rasters.maybeshiftlocus(Rasters.Start(), x) |>
-#     x -> Rasters.set(x, Ti => Int.(lookup(x, Ti))) |>
-#     x -> Rasters.aggregate(Rasters.Start(), x, (X(aggfactor), Y(aggfactor))) |>
-#     x -> rebuild(Rasters.modify(BitArray, x); missingval=false) |> NamedTuple
-# lc = lc.native .* 1 .+ lc.cleared .* 2 .+ lc.abandoned .* 3  .+ lc.forestry .* 3 .+ lc.urban .* 4
-# m = lc .!= 0
-
 t = u"yr" / 12
 predation_rates = NamedVector(map(s -> s.predation_rate, rodent_stats))
 # Does this make sense ? What is kg and km here exactly
@@ -68,18 +58,18 @@ end |> NamedVector
 
 lc_exploitation_capacity = NamedVector(;
     native=NamedVector(;
-        norway_rat = 0.6,
+        norway_rat = 0.5,
         black_rat  = 1.0, # Aboreal
-        mouse      = 0.8,
+        mouse      = 0.7,
     ),
     cleared=NamedVector(;
-        norway_rat = 0.8, # Avoid open fields
-        black_rat  = 0.8, # Avoid open fields
+        norway_rat = 0.7, # Avoid open fields
+        black_rat  = 0.7, # Avoid open fields
         mouse      = 0.9,
     ),
     urban=NamedVector(;
-        norway_rat = 1.0,
-        black_rat  = 1.0,
+        norway_rat = 0.9,
+        black_rat  = 0.9,
         mouse      = 1.0,
     ),
 )
@@ -89,21 +79,30 @@ native: 8000 kJ*d^-1, cleared: 8000 kJ*d^-1, urban: 40000 kJ*d^-1.
 native: (0.3, 0.8, 0.6), cleared: (0.5, 0.5, 0.5), urban: (0.8, 0.6, 0.6,)
 =#
 
-rodent_masses = NamedVector(map(r -> r.mean_mass, rodent_stats))
-competitors = NamedVector(
+rodent_keys = NamedVector{propertynames(rodent_masses)}(propertynames(rodent_masses))
+competitor_names = NamedVector(
     norway_rat=(:black_rat, :mouse),
     black_rat=(:norway_rat, :mouse),
     mouse=(:norway_rat, :black_rat)
 )
-rodent_keys = NamedVector{propertynames(rodent_masses)}(propertynames(rodent_masses))
-competetivness = (rodent_masses ./ rodent_masses.mouse) .^ (1/8)
+rodent_masses = NamedVector(map(r -> r.mean_mass, rodent_stats))
+competetivness = (rodent_masses ./ rodent_masses.mouse) .^ (1/3)
 
-α = map(rodent_keys, energy_intake, competetivness, competitors) do k, ei, c, others
+nr_br = 0.7
+nr_m = 0.4
+br_m = 0.4
+
+diet_overlap = NamedVector(;
+    norway_rat = (black_rat=nr_br, mouse=nr_m),
+    black_rat  = (norway_rat=nr_br, mouse=br_m),
+    mouse      = (norway_rat=nr_m, black_rat=br_m),
+)
+
+α = map(diet_overlap, rodent_keys, energy_intake, competetivness, competitor_names) do dio, k, ei, c, others
     map(others) do o
-        energy_intake[o] / ei * max(1.0, competetivness[o] / competetivness[k])
+        energy_intake[o] / ei  * dio[o]
     end
 end; pairs(α)
-
 lc_ks = map(lc_energy_available, lc_exploitation_capacity) do ea, exploitation_capacity
     map(exploitation_capacity, energy_intake) do ec, ei
         upreferred(ec .* ea ./ ei) / u"ha"
@@ -187,6 +186,7 @@ save(joinpath(basepath, "images/si_sim.png"), fig)
 save(joinpath(basepath, "images/si_sim.svg"), fig)
 
 
+
 ##############################################################################3
 # Spatially-Explicit model
 
@@ -226,7 +226,7 @@ rodent_spread_rule = InwardsDispersal{:rodents}(;
 
 ruleset = Ruleset(hanski_rule, rodent_spread_rule, cat_spread_rule)#, rodent_allee_rule)
 
-rodents = Raster(fill(lc_ks.native ./ 2, X(100), Y(100)))
+rodents = Raster(fill(lc_ks.native ./ 2, X(64), Y(64)))
 cats = map(_ -> 0.01oneunit(lc_ks.native[1]), rodents)
 tspan = 1:1000
 mpd = Raster(rand(MidpointDisplacement(0.35), dims(rodents)))
@@ -289,7 +289,7 @@ outputs = let tspan=1:500, aux=(; lc=parent(lc))
     init2 = (; cats, rodents=map(x -> x .* NamedVector(norway_rat=0, black_rat=1, mouse=1), rodents))
     init3 = (; cats, rodents=map(x -> x .* NamedVector(norway_rat=1, black_rat=0, mouse=1), rodents))
     init4 = (; cats, rodents=map(x -> x .* NamedVector(norway_rat=1, black_rat=1, mouse=0), rodents))
-    init5 = (; cats=cats .* 0, rodents)
+    init5 = (; cats=rebuild(cats, parent(cats .* 0)), rodents)
     outputs = (
         ResultOutput(init1; tspan, aux),
         ResultOutput(init2; tspan, aux),
@@ -298,7 +298,7 @@ outputs = let tspan=1:500, aux=(; lc=parent(lc))
         ResultOutput(init5; tspan, aux),
     )
     foreach(outputs) do output
-        sim!(output, ruleset; printframe=true)
+        sim!(output, ruleset; printframe=true, boundary=Wrap())
     end
     outputs
 end
@@ -306,8 +306,8 @@ end
 fig = let ylabelsize=20
     fig = Figure(; size=(1250, 1200))
     grays = cgrad(ColorSchemes.grayC[((0:1:3) ./ 3)[1:3]], 3; categorical=true)
-    r_maxs = [250.0, 250.0, 250.0]
-    r_ticks = [0:50:250, 0:50:250, 0:50:200]
+    r_maxs = [200.0, 200.0, 200.0]
+    r_ticks = [0:50:150, 0:50:150, 0:50:150]
     colorbar_kw = (;
         flipaxis=true,
         spinewidth=0,
@@ -334,7 +334,7 @@ fig = let ylabelsize=20
                 ylabelsize,
             )
             rA = output[end].rodents
-            r = image!(rodent_ax, rebuild(getindex.(rA, i); missingval=zero(eltype(rA)));
+            r = image!(rodent_ax, getindex.(rA, i);
                 colormap=:tempo,
                 interpolate=false,
                 colorrange=(0.0, max),

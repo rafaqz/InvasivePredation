@@ -1,5 +1,5 @@
 name,scientific,mass,carrycap,rmax,sources,notes,
 cat,Felus catus,2884.8,0.01,0.059,Lohr (2017) Maas (1998),,
 norway_rat,Rattus norvegicus,340,25,0.317,,max_density is made up and not used where it matters,
-black_rat,Rattus rattus,230,35,0.317,Lohr (2017),,
+black_rat,Rattus rattus,230,35,0.417,Lohr (2017),,
 mouse,Mus musculus,11,52,1.0,,max_density from Le Corre (2015),

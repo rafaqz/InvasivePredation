@@ -1,3 +1,5 @@
+const MONTH = (1/12)u"yr"
+
 function get_max_yield_fraction()
     (; cat, rodent, yield_metaparams) = InvasivePredation.load_settings()
     y = yield_metaparams
@@ -5,8 +7,9 @@ function get_max_yield_fraction()
     (; cat_mass_preference, rodent_stats, rodent_mass_distributions, norway_rat_params, norway_rat_studies) = 
         fit_distributions_to_literature()
 
-    (; individuals_per_cat) = get_cat_energetics(cat, rodent, rodent_stats)
+    (; individuals_per_cat) = InvasivePredation.get_cat_energetics(cat, rodent, rodent_stats)
     # Note: we get the same yield regardless of k, so this is general to any k
+    st = 0.0
     stochastic_rates = map((0.0:0.4:4.0)) do st
         rodent_params = map(rodent.rmax, rodent.carrycap, individuals_per_cat) do rt, k, ipc
             (; k, rt, std=st, metaparams=yield_metaparams, individuals_per_cat=ipc)
@@ -26,7 +29,7 @@ end
 function get_yield_fraction(df, rodent, i)
     NamedVector{Tuple(rodent.names)}(
         collect(df[1, map(x -> Symbol(:frac_, x), rodent.names)])
-    ) .* 12u"yr^-1"
+    ) * 12 * u"yr^-1"
 end
 
 function get_cat_energetics(cat, rodent, rodent_stats)
@@ -44,7 +47,7 @@ function optimise_hunting(p)
     x = rodent_func(frac, p)
     take = x.taken
     pop = x.mean_pop
-    cats = uconvert(u"km^-2", pop * frac / p.individuals_per_cat / (1/12)u"yr")
+    cats = uconvert(u"km^-2", pop * frac / p.individuals_per_cat / MONTH)
     return (; frac, take, pop, cats)
 end
 
@@ -83,7 +86,7 @@ function _update_pop(seasonality, s, x, minleft, p, N)
     (; k, rt, metaparams) = p
     (; nsteps) = metaparams
     k_season = _seasonal_k(k, seasonality, nsteps, s)
-    N = (N .* k_season) ./ (N .+ (k_season .- N) .* exp.(.-(rt / nsteps)))
+    N = (N .* k_season) ./ (N .+ (k_season .- N) .* exp.(.-rt))
     yield = max(zero(x), rand(Normal(x, p.std * x)))
     # Cant take the whole population
     taken = min(N * yield, N - minleft)
