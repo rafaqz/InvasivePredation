@@ -1,16 +1,14 @@
 function hanski_sim(model;
-    P_timeline=Vector{typeof(model.P)}(undef, length(model.tspan)),
-    Ns_timeline=Vector{typeof(model.Ns)}(undef, length(model.tspan)),
+    P_timeline=Vector{typeof(model.P0)}(undef, length(model.tspan)),
+    Ns_timeline=Vector{typeof(model.Ns0)}(undef, length(model.tspan)),
 )
-    (; P, Ns, ks, α, tspan) = model
-    P1 = P
-    Ns1 = Ns
+    (; P0, Ns0, ks, α, tspan) = model
+    P = P0
+    Ns = Ns0
     @inbounds for (i, t) in enumerate(tspan)
-        Ns2 = hanski_prey_timestep(P1, Ns1, ks, α, model)::typeof(Ns)
-        P1 = hanski_predator_timestep(P1, Ns1, model)::typeof(P)
-        Ns1 = Ns2
-        P_timeline[i] = P1
-        Ns_timeline[i] = Ns1
+        Ns1 = Ns_timeline[i] = hanski_prey_timestep(P, Ns, ks, α, model)::typeof(Ns0)
+        P = P_timeline[i] = hanski_predator_timestep(P, Ns, model)::typeof(P0)
+        Ns = Ns1
     end
     return P_timeline, Ns_timeline
 end
@@ -40,7 +38,7 @@ const OTHER_INDS = ((2, 3), (1, 3), (1, 2))
         Ns_x = map(j -> Ns[j], other_inds)
         g = growth(Ns[i], ks[i], rs[i], Ns_x, α_x)
         p = predation(Ns[i], βs[i], cs[i], P, D_Nβs)
-        max(zero(N), N + (g - p) * t)
+        convert(eltype(Ns), max(zero(N), N + (g - p * t)))
     end
 end
 
@@ -53,12 +51,15 @@ end
     Nβs = sum(Ns .* βs)
     # Calculate carrycap `q` from yield and energy requirement
     q = convert(typeof(P), (sum(Ns .* ys .* Es)) / e)
-    Preproduction = 1.5P # ??
+    @show q Ns ys Es e
+    println()
+    Preproduction = 1.2P # ??
     # If prey are above the breeding threshold
     P1 = if q > Preproduction # Use supportable population as the threshold rather than Ncrit
-        max(zero(P), P + v * P * (1 - q * P / Nβs) * t)
+        max(zero(P), P + v * P * (1 - q * P / oneunit(P) / Nβs))
     else
         max(zero(P), P + -d_high * P * t)
     end
     P1 + model.stochasticity * (rand() - 0.5) * P1
 end
+

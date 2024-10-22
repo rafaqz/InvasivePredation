@@ -30,7 +30,7 @@ function get_yield_fraction(df, rodent, i)
 end
 
 function get_cat_energetics(cat, rodent, rodent_stats)
-    mean_preferred_mass = NamedVector(map(r -> r.mean_predation_mass * u"g", rodent_stats))
+    mean_preferred_mass = NamedVector(map(r -> r.mean_predation_mass, rodent_stats))
     assimilated_energy = mean_preferred_mass .* rodent.energy_content .* cat.assimilation_efficiency .* cat.fraction_eaten
     individuals_per_cat = cat.energy_intake ./ assimilated_energy
     return (; assimilated_energy, individuals_per_cat, mean_preferred_mass)
@@ -83,7 +83,7 @@ function _update_pop(seasonality, s, x, minleft, p, N)
     (; k, rt, metaparams) = p
     (; nsteps) = metaparams
     k_season = _seasonal_k(k, seasonality, nsteps, s)
-    N = (N .* k_season) ./ (N .+ (k_season .- N) .* exp.(.-(rt / (nsteps * u"yr^-1"))))
+    N = (N .* k_season) ./ (N .+ (k_season .- N) .* exp.(.-(rt / nsteps)))
     yield = max(zero(x), rand(Normal(x, p.std * x)))
     # Cant take the whole population
     taken = min(N * yield, N - minleft)

@@ -22,7 +22,6 @@ export optimise_hunting
 
 const basepath = realpath(joinpath(@__DIR__, ".."))
 
-include("interactions.jl")
 include("hanski.jl")
 include("preference.jl")
 include("yield.jl")

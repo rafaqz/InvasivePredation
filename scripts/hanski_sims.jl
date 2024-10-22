@@ -37,99 +37,94 @@ alphapath = joinpath(basepath, "tables/alpha")
 
 t = u"yr" / 12
 predation_rates = NamedVector(map(s -> s.predation_rate, rodent_stats))
-# Hanski D parameters taken from cat mass preference model
-# These are relative, absolute value doesn't matter
-Ds = predation_rates ./ predation_rates[1]
+# Does this make sense ? What is kg and km here exactly
+Km_pred = 3.4 * 10^1 * u"kg*km^-2" # (from Mulder 2016)
+Ds = uconvert.(u"ha^-1", predation_rates.norway_rat ./ predation_rates * Km_pred / rodent_stats.norway_rat.mean_mass)
 cs = individuals_per_cat # Base intake reequirement
 ys = max_yield_fraction ./ 2 # Prey yields
-v = cat.rmax * u"yr^-1" # Predator rmax
+rs = rodent.rmax
+v = cat.rmax
 e = cat.energy_intake
 Es = assimilated_energy
-rs = rodent.rmax
 d_high = 0.2 / t
 # Ncrit = 4 / u"d"
 
-
-# Define α parameters based on energy intake and diet overlap
+# Define α parameters based on energy intake
+# These numbers are too low, something is wrong with the equation
 metabolic_rate = (;
     norway_rat=211.0u"kJ*kg^-(3/4)*d^-1",
     black_rat=211.0u"kJ*kg^-(3/4)*d^-1",
     mouse=211.0u"kJ*kg^-(3/4)*d^-1",
 )
+lc_energy_available = NamedVector(;
+    native=2000u"kJ*d^-1",
+    cleared=2000u"kJ*d^-1",
+    urban=4000u"kJ*d^-1",
+)
 
 energy_intake = map(metabolic_rate, rodent_stats) do mr, rs
-    uconvert(u"kJ/d", mr * (rs.mean_mass * u"g"^(3/4)))
+    uconvert(u"kJ*d^-1", mr * (rs.mean_mass^(3/4)))
 end |> NamedVector
-
-lc_energy_available = NamedVector(;
-    native=5000u"kJ*d^-1",
-    cleared=5000u"kJ*d^-1",
-    urban=10000u"kJ*d^-1",
-)
 
 lc_exploitation_capacity = NamedVector(;
     native=NamedVector(;
-        norway_rat = 0.4,
-        black_rat  = 0.8,
-        mouse      = 0.7,
+        norway_rat = 0.6,
+        black_rat  = 1.0, # Aboreal
+        mouse      = 0.8,
     ),
     cleared=NamedVector(;
-        norway_rat = 0.5,
-        black_rat  = 0.5,
-        mouse      = 0.8,
+        norway_rat = 0.8, # Avoid open fields
+        black_rat  = 0.8, # Avoid open fields
+        mouse      = 0.9,
     ),
     urban=NamedVector(;
-        norway_rat = 0.8,
-        black_rat  = 0.6,
-        mouse      = 0.8,
+        norway_rat = 1.0,
+        black_rat  = 1.0,
+        mouse      = 1.0,
     ),
-)
-
-lc_energy_available = NamedVector(;
-    native=8000u"kJ*d^-1",
-    cleared=8000u"kJ*d^-1",
-    urban=24000u"kJ*d^-1",
 )
 
 #=
 native: 8000 kJ*d^-1, cleared: 8000 kJ*d^-1, urban: 40000 kJ*d^-1.
 native: (0.3, 0.8, 0.6), cleared: (0.5, 0.5, 0.5), urban: (0.8, 0.6, 0.6,)
 =#
-nr_br = 0.7
-nr_m = 0.6
-br_m = 0.6
 
-diet_overlap = NamedVector(;
-    norway_rat = (nr_br, nr_m),
-    black_rat  = (nr_br, br_m),
-    mouse      = (nr_m, br_m),
+rodent_masses = NamedVector(map(r -> r.mean_mass, rodent_stats))
+competitors = NamedVector(
+    norway_rat=(:black_rat, :mouse),
+    black_rat=(:norway_rat, :mouse),
+    mouse=(:norway_rat, :black_rat)
 )
+rodent_keys = NamedVector{propertynames(rodent_masses)}(propertynames(rodent_masses))
+competetivness = (rodent_masses ./ rodent_masses.mouse) .^ (1/8)
 
-competitors = NamedVector(norway_rat=(2, 3), black_rat=(1, 3), mouse=(1, 2))
-α = map(diet_overlap, energy_intake, competitors) do di_o, ei, (a, b)
-    (energy_intake[a] / ei * di_o[1], energy_intake[b] / ei  * di_o[2])
-end
+α = map(rodent_keys, energy_intake, competetivness, competitors) do k, ei, c, others
+    map(others) do o
+        energy_intake[o] / ei * max(1.0, competetivness[o] / competetivness[k])
+    end
+end; pairs(α)
 
 lc_ks = map(lc_energy_available, lc_exploitation_capacity) do ea, exploitation_capacity
     map(exploitation_capacity, energy_intake) do ec, ei
-        upreferred(ec .* ea ./ ei)
+        upreferred(ec .* ea ./ ei) / u"ha"
     end
 end
 lc_labels = ["Native", "Cleared", "Urban"]
-scenario_labels = ["A", "B", "C"]
+lc_names = NamedVector{propertynames(lc_ks)}(propertynames(lc_ks))
+scenario_labels = ["A", "B", "C", "D", "E"]
 
 ##############################################################################3
 # Spatially-Implicit model
 
 # Init conditions
-P = 0.0001
-Ns = rodent.carrycap .* u"ha" ./ 2
+P0 = 0.01 * u"ha^-1"
+ks = lc_ks.native
+Ns0 = ks ./ 2
 tspan = 1u"d":1u"d":convert(typeof(1.0u"d"), 3u"yr")
 stochasticity = Param(0.05; bounds=(0.0, 0.2), label="stochasticity")
-lc_names = NamedVector{keys(lc_ks)}(keys(lc_ks))
-ks = lc_ks.native
 
-model = (; P, Ns, ks, Ds, Es, ys, α, cs, rs, d_high, v, e, t, tspan, stochasticity, cat)
+model = (; P0, Ns0, ks, Ds, Es, ys, α, cs, rs, d_high, v, e, t, tspan, stochasticity, cat)
+model |> pairs
 
 # Live interaction to find α parameters
 # mm = MakieModel(model) do layout, m
@@ -156,34 +151,40 @@ fig = let
     cat_color = InvasivePredation.cat_color
     rodent_colors = InvasivePredation.rodent_colors
     fig = Figure(; size=(800, 250));
+    i = 1
     for i in 1:3
         m = @set model.ks = lc_ks[i]
         # Label
-        text_ax = Axis(fig[0, i]; )
+        text_ax = Axis(fig[0, i])
         xlims!(text_ax, (0, 1))
         ylims!(text_ax, (0, 1))
         simplify!(text_ax)
         text!(text_ax, 0.0, 0.0; text=scenario_labels[i], fontsize=20)
         # Populations
-        ax = Axis(fig[1, i]; yscale=log10, xlabel=lc_labels[i])
+        ax = Axis(fig[1, i]; yscale=log10, xlabel=lc_labels[i], yticks=[0.01, 0.1, 1, 10, 100])
         ylims!(ax, (0.001, 900))
         results = hanski_sim(m)
+        results[end]
+        log_fudge = (0.000000001 * oneunit(last(last(last(results)))))
         map(3:-1:1) do r
-            rodent_timeline = getindex.(last(results), r) .+ 0.000000001
+            rodent_timeline = getindex.(last(results), r) .+ log_fudge
             Makie.lines!(ax, tspan, rodent_timeline; label=rodent.labels[r], color=rodent_colors[r])
         end
-        cat_timeline = first(results) .+ 0.000000001
+        cat_timeline = first(results) .+ log_fudge
         Makie.lines!(ax, tspan, cat_timeline; label="Cat", color=cat_color)
-        hideydecorations!(ax; ticks=i != 1, ticklabels=i != 1) 
-        hidexdecorations!(ax; label=false, ticks=false, ticklabels=false) 
+        hideydecorations!(ax; ticks=i != 1, ticklabels=i != 1)
+        hidexdecorations!(ax; label=false, ticks=false, ticklabels=false)
         hidespines!(ax)
-        if i == 3 
+        if i == 3
             Legend(fig[1, 4], ax; framevisible=false)
         end
     end
     rowsize!(fig.layout, 0, Relative(0.2))
     fig
 end
+
+save(joinpath(basepath, "images/si_sim.png"), fig)
+save(joinpath(basepath, "images/si_sim.svg"), fig)
 
 
 ##############################################################################3
@@ -207,8 +208,8 @@ cat_spread_rule = OutwardsDispersal{:cats}(;
 )
 
 rodent_λ = NamedVector{propertynames(Ns)}((
-    Param(0.5, label="R.n λ", bounds=(0.00001, 1.0)),
-    Param(0.3, label="R.r λ", bounds=(0.00001, 1.0)),
+    Param(0.2, label="R.n λ", bounds=(0.00001, 1.0)),
+    Param(0.2, label="R.r λ", bounds=(0.00001, 1.0)),
     Param(0.2, label="M.n λ", bounds=(0.00001, 1.0)),
 ))
 ExponentialKernel([1.0, 2.0])(10.0)
@@ -219,31 +220,24 @@ rodent_spread_rule = InwardsDispersal{:rodents}(;
     # maskbehavior=Dispersal.CheckMaskEdges()
 )
 
-rodent_allee_rule = AlleeExtinction{:rodents}(NamedVector(; norway_rat=0.1, black_rat=0.4, mouse=0.5))
+# rodent_allee_rule = AlleeExtinction{:rodents}(
+#     NamedVector(; norway_rat=0.4, black_rat=0.4, mouse=0.4) .* u"ha^-1"
+# )
 
-ruleset = Ruleset(hanski_rule, rodent_spread_rule, cat_spread_rule, rodent_allee_rule)
+ruleset = Ruleset(hanski_rule, rodent_spread_rule, cat_spread_rule)#, rodent_allee_rule)
 
-rodents = Raster(fill(lc_ks.native ./ 2, X(150), Y(300)))
-cats = map(_ -> 0.01, rodents)
+rodents = Raster(fill(lc_ks.native ./ 2, X(100), Y(100)))
+cats = map(_ -> 0.01oneunit(lc_ks.native[1]), rodents)
 tspan = 1:1000
-quantiles = (
-    (0.60, 0.80),
-    (0.20, 0.80),
-    (0.20, 0.40),
-)
-lcs = map(quantiles) do (qa, qb)
-    mpd = Raster(rand(MidpointDisplacement(0.35), dims(rodents)))
-    a = quantile(vec(mpd), qa)
-    b = quantile(vec(mpd), qb)
-    classes = (<(a) => 1, a .. b => 2, >(b) => 3)
-    Rasters.classify(mpd, classes; others=0, missingval=0)
-end
-tspan = 1:1000
+mpd = Raster(rand(MidpointDisplacement(0.35), dims(rodents)))
+a = quantile(vec(mpd), 1/4)
+b = quantile(vec(mpd), 3/4)
+classes = (<(a) => 1, a .. b => 2, >(b) => 3)
+lc = Rasters.classify(mpd, classes; others=0, missingval=0)
 init = (; cats, rodents)
-lc_mode = 3
 
 # Basic test run
-output = ResultOutput(init; tspan=1:10, aux=(; lc=parent(lcs[lc_mode])), boundary=Wrap())
+output = ResultOutput(init; tspan=1:10, aux=(; lc=parent(lc)), boundary=Wrap())
 sim!(output, ruleset; printframe=true)
 
 # Live simulation
@@ -289,21 +283,31 @@ sim!(output, ruleset; printframe=true)
 CairoMakie.activate!()
 
 # Run simulations
-outputs = map(1:3) do i
-    output = ResultOutput(init; tspan=1:500, aux=(; lc=parent(lcs[i])), boundary=Wrap())
-    sim!(output, ruleset; printframe=true)
+
+outputs = let tspan=1:500, aux=(; lc=parent(lc))
+    init1 = (; cats, rodents)
+    init2 = (; cats, rodents=map(x -> x .* NamedVector(norway_rat=0, black_rat=1, mouse=1), rodents))
+    init3 = (; cats, rodents=map(x -> x .* NamedVector(norway_rat=1, black_rat=0, mouse=1), rodents))
+    init4 = (; cats, rodents=map(x -> x .* NamedVector(norway_rat=1, black_rat=1, mouse=0), rodents))
+    init5 = (; cats=cats .* 0, rodents)
+    outputs = (
+        ResultOutput(init1; tspan, aux),
+        ResultOutput(init2; tspan, aux),
+        ResultOutput(init3; tspan, aux),
+        ResultOutput(init4; tspan, aux),
+        ResultOutput(init5; tspan, aux),
+    )
+    foreach(outputs) do output
+        sim!(output, ruleset; printframe=true)
+    end
+    outputs
 end
 
 fig = let ylabelsize=20
-    fig = Figure(; size=(1000, 1200))
-    # maxs = mapreduce((a, x) -> map(max, a, x), outputs) do output
-    #     reduce(output[end].rodents) do acc, x
-    #         map(max, acc, x)
-    #     end
-    # end
+    fig = Figure(; size=(1250, 1200))
     grays = cgrad(ColorSchemes.grayC[((0:1:3) ./ 3)[1:3]], 3; categorical=true)
-    r_maxs = [60.0, 60.0, 300.0]
-    r_ticks = [0:10:50, 0:10:50, 0:50:250]
+    r_maxs = [250.0, 250.0, 250.0]
+    r_ticks = [0:50:250, 0:50:250, 0:50:200]
     colorbar_kw = (;
         flipaxis=true,
         spinewidth=0,
@@ -318,25 +322,24 @@ fig = let ylabelsize=20
         text!(text_ax, 0.0, 0.0; text=scenario_labels[j], fontsize=20)
         # Landcover
         lc_ax = Axis(fig[1, j]; ylabel="Land Cover", ylabelsize)
-        lc_im = image!(lc_ax, lcs[j]; colormap=grays, interpolate=false, colorrange=(0.5, 3.5))
-        j == 3 && Colorbar(fig[1, j, Right()], lc_im;
+        lc_im = image!(lc_ax, lc; colormap=grays, interpolate=false, colorrange=(0.5, 3.5))
+        j == length(outputs) && Colorbar(fig[1, j + 1], lc_im;
             ticks=(1:1:3, lc_labels),
             colorbar_kw...
         )
         # Rodents
         rodent_axs = map(1:length(lc_ks[1]), propertynames(lc_ks[1]), r_maxs) do i, name, max
-            I = 1 + i, j
-            rodent_ax = Axis(fig[I...];
+            rodent_ax = Axis(fig[i + 1, j];
                 ylabel=titlecase(replace(string(name), "_"=> " ")),
                 ylabelsize,
             )
-            A = rebuild(getindex.(output[end].rodents, i); missingval=0.0)
-            r = image!(rodent_ax, A;
+            rA = output[end].rodents
+            r = image!(rodent_ax, rebuild(getindex.(rA, i); missingval=zero(eltype(rA)));
                 colormap=:tempo,
                 interpolate=false,
                 colorrange=(0.0, max),
             )
-            j == 3 && Colorbar(fig[I..., Right()], r;
+            j == length(outputs) && Colorbar(fig[i + 1, j + 1], r;
                 ticks=r_ticks[i],
                 colorbar_kw...
             )
@@ -344,12 +347,13 @@ fig = let ylabelsize=20
         end
         # Cats
         cat_ax = Axis(fig[5, j]; ylabel="Cat", ylabelsize)
-        c = image!(cat_ax, output[end].cats;
+        cA = output[end].cats
+        c = image!(cat_ax, cA;
             colormap=Reverse(:solar),
             interpolate=false,
             colorrange=(0.0, 0.07),
         )
-        j == 3 && Colorbar(fig[5, j, Right()], c;
+        j == length(outputs) && Colorbar(fig[5, j + 1], c;
             ticks=collect(0.01:0.01:0.06),
             colorbar_kw...
         )
@@ -358,16 +362,41 @@ fig = let ylabelsize=20
         j == 1 ? simplify!.(axs; label=false) : simplify!.(axs)
         axs
     end |> Iterators.flatten |> collect
-
-    rowsize!(fig.layout, 0, Relative(0.05))
-    ax = Axis(fig[0, 4])
-    simplify!(ax)
-    colsize!(fig.layout, 4, Relative(0.04))
     # Zoom everything together
     linkaxes!(all_axs...)
+    rowsize!(fig.layout, 0, Relative(0.03))
     fig
 end
 
-fig
+save(joinpath(basepath, "images/se_sim.png"), fig)
+save(joinpath(basepath, "images/se_sim.svg"), fig)
 
-save(joinpath(basepath, "images/sim.png"), output.fig)
+# fig = let ylabelsize=20
+#     fig = Figure(; size=(1000, 300))
+#     grays = cgrad(ColorSchemes.grayC[((0:1:3) ./ 3)[1:3]], 3; categorical=true)
+#     output = outputs[1]
+#     # Landcover
+#     lc_ax = Axis(fig[1, 1])
+#     lc_im = image!(lc_ax, lcs[1]; colormap=grays, interpolate=false, colorrange=(0.5, 3.5))
+#     # Rodents
+#     rodent_ax = Axis(fig[1, 2])
+#     A = rebuild(getindex.(output[end].rodents, 2); missingval=0.0)
+#     r = image!(rodent_ax, A;
+#         colormap=:tempo,
+#         interpolate=false,
+#         colorrange=(0.0, 60.0),
+#     )
+#     # Cats
+#     cat_ax = Axis(fig[1, 3])
+#     c = image!(cat_ax, rebuild(output[end].cats; missingval=0.0);
+#         colormap=Reverse(:solar),
+#         interpolate=false,
+#         colorrange=(0.0, 0.07),
+#     )
+#     axs = (cat_ax, lc_ax, rodent_ax)
+#     simplify!.(axs)
+#     fig
+# end
+
+# fig
+
