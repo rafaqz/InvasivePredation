@@ -23,9 +23,9 @@ s = InvasivePredation.load_settings()
 
 # Stochasticity reduces yield
 fig = let
-    fig = Figure(; size=(450, 600));
+    fig = Figure(; size=(500, 500));
     labels = ["Optimal fraction\nhunted per month", "Supported cats\n per km^2", "Mean rodents\n per hectare"]
-    yl = ((0, 0.2), (0, 1.5), (0, 40))
+    yl = ((0, 0.5), (0, 2.0), (0, 40))
     x = stochastic_rates.std
     xticks = 0:0.4:4.0
     axs = map(enumerate(labels)) do (i, ylabel)
@@ -35,16 +35,18 @@ fig = let
                 # xlabel="seasonality", 
                 ylabel, 
                 xticks,
+                spinewidth=2, xgridwidth=2, ygridwidth=2, 
             )
         else
             Axis(fig[i, 1]; 
                 ylabel, 
                 xticks,
                 xticksvisible=false, 
-                xticklabelsvisible=false
+                xticklabelsvisible=false,
+                spinewidth=2, xgridwidth=2, ygridwidth=2, 
             )
         end
-        simplify!(ax)
+        # simplify!(ax)
         ylims!(ax, yl[i])
         ax
     end

@@ -27,8 +27,8 @@ include("preference.jl")
 include("yield.jl")
 include("load_settings.jl")
 
-const cat_color = ColorSchemes.solar[0.7]
-const rodent_colors = ColorSchemes.tempo[[0.9, 0.55, 0.2]]
+cat_color = ColorSchemes.solar[0.7]
+rodent_colors = ColorSchemes.tempo[[0.2, 0.55, 0.9]]
 
 
 end

@@ -42,18 +42,18 @@ d_high = 0.2 / t
 # Define α parameters based on energy intake
 # These numbers are too low, something is wrong with the equation
 metabolic_rate = (;
-    norway_rat=211.0u"kJ*kg^-(3/4)*d^-1",
-    black_rat=211.0u"kJ*kg^-(3/4)*d^-1",
-    mouse=211.0u"kJ*kg^-(3/4)*d^-1",
+    norway_rat=637.0u"kJ*kg^-(3/4)*d^-1",
+    black_rat=637.0u"kJ*kg^-(3/4)*d^-1",
+    mouse=637.0u"kJ*kg^-(3/4)*d^-1",
 )
 lc_energy_available = NamedVector(;
-    native=2000u"kJ*d^-1",
-    cleared=2000u"kJ*d^-1",
-    urban=4000u"kJ*d^-1",
+    native=5000u"kJ*d^-1",
+    cleared=5000u"kJ*d^-1",
+    urban=10000u"kJ*d^-1",
 )
 
 energy_intake = map(metabolic_rate, rodent_stats) do mr, rs
-    uconvert(u"kJ*d^-1", mr * (rs.mean_mass^(3/4)))
+    uconvert(u"kJ*d^-1", mr * uconvert(u"kg", rs.mean_mass)^(3/4))
 end |> NamedVector
 
 lc_exploitation_capacity = NamedVector(;
@@ -68,8 +68,8 @@ lc_exploitation_capacity = NamedVector(;
         mouse      = 0.9,
     ),
     urban=NamedVector(;
-        norway_rat = 0.9,
-        black_rat  = 0.9,
+        norway_rat = 1.0,
+        black_rat  = 1.0,
         mouse      = 1.0,
     ),
 )
@@ -146,38 +146,47 @@ model |> pairs
 simplify!(ax; kw...) = (hidedecorations!(ax; kw...); hidespines!(ax))
 
 CairoMakie.activate!()
-fig = let
+
+function plot_populations!(fig, model, lc_ks, i; 
+    lc=i, 
+    hideticks=true, 
+    label=false,
+    xlabel=lc_labels[lc],
+)
     cat_color = InvasivePredation.cat_color
     rodent_colors = InvasivePredation.rodent_colors
-    fig = Figure(; size=(800, 250));
-    i = 1
-    for i in 1:3
-        m = @set model.ks = lc_ks[i]
-        # Label
+    m = @set model.ks = lc_ks[lc]
+    # Label
+    if label
         text_ax = Axis(fig[0, i])
         xlims!(text_ax, (0, 1))
         ylims!(text_ax, (0, 1))
         simplify!(text_ax)
         text!(text_ax, 0.0, 0.0; text=scenario_labels[i], fontsize=20)
-        # Populations
-        ax = Axis(fig[1, i]; yscale=log10, xlabel=lc_labels[i], yticks=[0.01, 0.1, 1, 10, 100])
-        ylims!(ax, (0.001, 900))
-        results = hanski_sim(m)
-        results[end]
-        log_fudge = (0.000000001 * oneunit(last(last(last(results)))))
-        map(3:-1:1) do r
-            rodent_timeline = getindex.(last(results), r) .+ log_fudge
-            Makie.lines!(ax, tspan, rodent_timeline; label=rodent.labels[r], color=rodent_colors[r])
-        end
-        cat_timeline = first(results) .+ log_fudge
-        Makie.lines!(ax, tspan, cat_timeline; label="Cat", color=cat_color)
-        hideydecorations!(ax; ticks=i != 1, ticklabels=i != 1)
-        hidexdecorations!(ax; label=false, ticks=false, ticklabels=false)
-        hidespines!(ax)
-        if i == 3
-            Legend(fig[1, 4], ax; framevisible=false)
-        end
     end
+    # Populations
+    ax = Axis(fig[1, i]; yscale=log10, xlabel, yticks=[0.01, 0.1, 1, 10, 100])
+    ylims!(ax, (0.001, 900))
+    results = hanski_sim(m)
+    log_fudge = (0.000000001 * oneunit(last(last(last(results)))))
+    map(3:-1:1) do r
+        rodent_timeline = getindex.(last(results), r) .+ log_fudge
+        Makie.lines!(ax, tspan, rodent_timeline; label=rodent.labels[r], color=rodent_colors[r])
+    end
+    cat_timeline = first(results) .+ log_fudge
+    Makie.lines!(ax, tspan, cat_timeline; label="Cat", color=cat_color)
+    hideydecorations!(ax; ticks=hideticks, ticklabels=hideticks)
+    hidexdecorations!(ax; label=false, ticks=false, ticklabels=false)
+    hidespines!(ax)
+    return ax
+end
+
+fig = let
+    fig = Figure(; size=(800, 250));
+    axs = map(1:3) do i
+        plot_populations!(fig, model, lc_ks, i; hideticks=i != 1, label=true)
+    end
+    Legend(fig[1, 4], axs[1]; framevisible=false)
     rowsize!(fig.layout, 0, Relative(0.2))
     fig
 end
@@ -185,6 +194,15 @@ end
 save(joinpath(basepath, "images/si_sim.png"), fig)
 save(joinpath(basepath, "images/si_sim.svg"), fig)
 
+fig = let
+    fig = Figure(; size=(600, 350));
+    ax = plot_populations!(fig, model, lc_ks, 1; hideticks=true, lc=3, xlabel="")
+    Legend(fig[1, 2], ax; framevisible=false)
+    fig
+end
+
+save(joinpath(basepath, "images/si_sim.png"), fig)
+save(joinpath(basepath, "images/si_sim.svg"), fig)
 
 
 ##############################################################################3
@@ -207,7 +225,7 @@ cat_spread_rule = OutwardsDispersal{:cats}(;
     maskbehavior=Dispersal.CheckMaskEdges()
 )
 
-rodent_λ = NamedVector{propertynames(Ns)}((
+rodent_λ = NamedVector{propertynames(Ns0)}((
     Param(0.2, label="R.n λ", bounds=(0.00001, 1.0)),
     Param(0.2, label="R.r λ", bounds=(0.00001, 1.0)),
     Param(0.2, label="M.n λ", bounds=(0.00001, 1.0)),
@@ -240,7 +258,9 @@ init = (; cats, rodents)
 output = ResultOutput(init; tspan=1:10, aux=(; lc=parent(lc)), boundary=Wrap())
 sim!(output, ruleset; printframe=true)
 
+#####################################
 # Live simulation
+
 # GLMakie.activate!()
 # output = MakieOutput(init;
 #     ruleset, tspan, fps=100,
@@ -278,12 +298,11 @@ sim!(output, ruleset; printframe=true)
 #     nothing
 # end
 
-# Figure
-
+#######################################
+# Figures
 CairoMakie.activate!()
 
 # Run simulations
-
 outputs = let tspan=1:500, aux=(; lc=parent(lc))
     init1 = (; cats, rodents)
     init2 = (; cats, rodents=map(x -> x .* NamedVector(norway_rat=0, black_rat=1, mouse=1), rodents))
@@ -315,13 +334,13 @@ fig = let ylabelsize=20
     )
     all_axs = map(enumerate(outputs)) do (j, output)
         # Labels
-        text_ax = Axis(fig[0, j])
+        text_ax = Axis(fig[0, j]; axis=1)
         xlims!(text_ax, (0, 1))
         ylims!(text_ax, (0, 1))
         simplify!(text_ax)
         text!(text_ax, 0.0, 0.0; text=scenario_labels[j], fontsize=20)
         # Landcover
-        lc_ax = Axis(fig[1, j]; ylabel="Land Cover", ylabelsize)
+        lc_ax = Axis(fig[1, j]; ylabel="Land Cover", ylabelsize, aspect=1)
         lc_im = image!(lc_ax, lc; colormap=grays, interpolate=false, colorrange=(0.5, 3.5))
         j == length(outputs) && Colorbar(fig[1, j + 1], lc_im;
             ticks=(1:1:3, lc_labels),
@@ -331,7 +350,8 @@ fig = let ylabelsize=20
         rodent_axs = map(1:length(lc_ks[1]), propertynames(lc_ks[1]), r_maxs) do i, name, max
             rodent_ax = Axis(fig[i + 1, j];
                 ylabel=titlecase(replace(string(name), "_"=> " ")),
-                ylabelsize,
+                ylabelsize, 
+                aspect=1
             )
             rA = output[end].rodents
             r = image!(rodent_ax, getindex.(rA, i);
@@ -346,7 +366,7 @@ fig = let ylabelsize=20
             rodent_ax
         end
         # Cats
-        cat_ax = Axis(fig[5, j]; ylabel="Cat", ylabelsize)
+        cat_ax = Axis(fig[5, j]; ylabel="Cat", ylabelsize, aspect=1)
         cA = output[end].cats
         c = image!(cat_ax, cA;
             colormap=Reverse(:solar),
@@ -371,32 +391,38 @@ end
 save(joinpath(basepath, "images/se_sim.png"), fig)
 save(joinpath(basepath, "images/se_sim.svg"), fig)
 
-# fig = let ylabelsize=20
-#     fig = Figure(; size=(1000, 300))
-#     grays = cgrad(ColorSchemes.grayC[((0:1:3) ./ 3)[1:3]], 3; categorical=true)
-#     output = outputs[1]
-#     # Landcover
-#     lc_ax = Axis(fig[1, 1])
-#     lc_im = image!(lc_ax, lcs[1]; colormap=grays, interpolate=false, colorrange=(0.5, 3.5))
-#     # Rodents
-#     rodent_ax = Axis(fig[1, 2])
-#     A = rebuild(getindex.(output[end].rodents, 2); missingval=0.0)
-#     r = image!(rodent_ax, A;
-#         colormap=:tempo,
-#         interpolate=false,
-#         colorrange=(0.0, 60.0),
-#     )
-#     # Cats
-#     cat_ax = Axis(fig[1, 3])
-#     c = image!(cat_ax, rebuild(output[end].cats; missingval=0.0);
-#         colormap=Reverse(:solar),
-#         interpolate=false,
-#         colorrange=(0.0, 0.07),
-#     )
-#     axs = (cat_ax, lc_ax, rodent_ax)
-#     simplify!.(axs)
-#     fig
-# end
+fig = let ylabelsize=20
+    fig = Figure(; size=(1000, 220))
+    grays = cgrad(ColorSchemes.grayC[((0:1:3) ./ 3)[1:3]], 3; categorical=true)
+    output = outputs[1]
+    # Landcover
+    lc_ax = Axis(fig[1, 1]; aspect=1)
+    lc_im = image!(lc_ax, lc; colormap=grays, interpolate=false, colorrange=(0.5, 3.5))
+    # Rodents
+    rodent_axs = map(1:3) do i
+        ax = Axis(fig[1, 1 + i]; aspect=1)
+        A = rebuild(getindex.(output[end].rodents, i); missingval=0.0u"ha^-1")
+        r = image!(ax, A;
+            colormap=:tempo,
+            interpolate=false,
+            colorrange=(0.0, 150.0),
+        )
+        ax
+    end
+    # Cats
+    cat_ax = Axis(fig[1, 2 + length(rodent_axs)]; aspect=1)
+    c = image!(cat_ax, rebuild(output[end].cats; missingval=0.0u"ha^-1");
+        colormap=Reverse(:solar),
+        interpolate=false,
+        colorrange=(0.0, 0.07),
+    )
+    axs = (cat_ax, lc_ax, rodent_axs...)
+    simplify!.(axs)
+    fig
+end
+
+save(joinpath(basepath, "images/se_sim_mini.png"), fig)
+save(joinpath(basepath, "images/se_sim_mini.svg"), fig)
 
 # fig
 
