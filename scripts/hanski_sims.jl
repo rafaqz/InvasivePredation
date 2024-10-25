@@ -40,24 +40,24 @@ d_high = 0.2 / t
 # Ncrit = 4 / u"d"
 
 # Define α parameters based on energy intake
-# These numbers are too low, something is wrong with the equation
+# Using mouse scaling for all currently, rat numbers were very wrong
 metabolic_rate = (;
     norway_rat=637.0u"kJ*kg^-(3/4)*d^-1",
     black_rat=637.0u"kJ*kg^-(3/4)*d^-1",
     mouse=637.0u"kJ*kg^-(3/4)*d^-1",
 )
+
+
+# Parameter estimates
+
 lc_energy_available = NamedVector(;
-    native=5000u"kJ*d^-1",
+    forest=5000u"kJ*d^-1",
     cleared=5000u"kJ*d^-1",
-    urban=10000u"kJ*d^-1",
+    urban=15000u"kJ*d^-1",
 )
 
-energy_intake = map(metabolic_rate, rodent_stats) do mr, rs
-    uconvert(u"kJ*d^-1", mr * uconvert(u"kg", rs.mean_mass)^(3/4))
-end |> NamedVector
-
 lc_exploitation_capacity = NamedVector(;
-    native=NamedVector(;
+    forest=NamedVector(;
         norway_rat = 0.5,
         black_rat  = 1.0, # Aboreal
         mouse      = 0.7,
@@ -65,7 +65,7 @@ lc_exploitation_capacity = NamedVector(;
     cleared=NamedVector(;
         norway_rat = 0.7, # Avoid open fields
         black_rat  = 0.7, # Avoid open fields
-        mouse      = 0.9,
+        mouse      = 1.0,
     ),
     urban=NamedVector(;
         norway_rat = 1.0,
@@ -74,21 +74,8 @@ lc_exploitation_capacity = NamedVector(;
     ),
 )
 
-#=
-native: 8000 kJ*d^-1, cleared: 8000 kJ*d^-1, urban: 40000 kJ*d^-1.
-native: (0.3, 0.8, 0.6), cleared: (0.5, 0.5, 0.5), urban: (0.8, 0.6, 0.6,)
-=#
-
-rodent_keys = NamedVector{propertynames(rodent_masses)}(propertynames(rodent_masses))
-competitor_names = NamedVector(
-    norway_rat=(:black_rat, :mouse),
-    black_rat=(:norway_rat, :mouse),
-    mouse=(:norway_rat, :black_rat)
-)
-rodent_masses = NamedVector(map(r -> r.mean_mass, rodent_stats))
-competetivness = (rodent_masses ./ rodent_masses.mouse) .^ (1/3)
-
-nr_br = 0.7
+# Diet overlap 
+nr_br = 0.6
 nr_m = 0.4
 br_m = 0.4
 
@@ -98,9 +85,24 @@ diet_overlap = NamedVector(;
     mouse      = (norway_rat=nr_m, black_rat=br_m),
 )
 
-α = map(diet_overlap, rodent_keys, energy_intake, competetivness, competitor_names) do dio, k, ei, c, others
+aggression_exponent = 1//3
+
+# Calculated
+energy_intake = map(metabolic_rate, rodent_stats) do mr, rs
+    uconvert(u"kJ*d^-1", mr * uconvert(u"kg", rs.mean_mass)^(3/4))
+end |> NamedVector
+
+rodent_keys = NamedVector{propertynames(rodent_masses)}(propertynames(rodent_masses))
+competitor_names = NamedVector(
+    norway_rat=(:black_rat, :mouse),
+    black_rat=(:norway_rat, :mouse),
+    mouse=(:norway_rat, :black_rat)
+)
+rodent_masses = NamedVector(map(r -> r.mean_mass, rodent_stats))
+aggression = (rodent_masses ./ rodent_masses.mouse) .^ aggression_exponent
+α = map(diet_overlap, rodent_keys, energy_intake, aggression, competitor_names) do dio, k, ei, c, others
     map(others) do o
-        energy_intake[o] / ei  * dio[o]
+        energy_intake[o] / ei  * dio[o] .* max(1.0, aggression[o] / aggression[k])
     end
 end; pairs(α)
 lc_ks = map(lc_energy_available, lc_exploitation_capacity) do ea, exploitation_capacity
@@ -108,22 +110,86 @@ lc_ks = map(lc_energy_available, lc_exploitation_capacity) do ea, exploitation_c
         upreferred(ec .* ea ./ ei) / u"ha"
     end
 end
-lc_labels = ["Native", "Cleared", "Urban"]
+lc_labels = ["Forest", "Cleared", "Urban"]
 lc_names = NamedVector{propertynames(lc_ks)}(propertynames(lc_ks))
-scenario_labels = ["A", "B", "C", "D", "E"]
+scenario_labels = 'A':'E'
 
 ##############################################################################3
 # Spatially-Implicit model
 
 # Init conditions
 P0 = 0.01 * u"ha^-1"
-ks = lc_ks.native
+ks = lc_ks.forest
 Ns0 = ks ./ 2
-tspan = 1u"d":1u"d":convert(typeof(1.0u"d"), 3u"yr")
+tspan = 1u"d":1u"d":convert(typeof(1.0u"d"), 1u"yr")
 stochasticity = Param(0.05; bounds=(0.0, 0.2), label="stochasticity")
 
 model = (; P0, Ns0, ks, Ds, Es, ys, α, cs, rs, d_high, v, e, t, tspan, stochasticity, cat)
-model |> pairs
+
+function plot_populations!(fig, model, lc_ks, i; 
+    lc=i, 
+    hideticks=true, 
+    label=false,
+)
+    cat_color = InvasivePredation.cat_color
+    rodent_colors = InvasivePredation.rodent_colors
+    m = @set model.ks = lc_ks[lc]
+
+    l = ('A':'E')[i] * ": " * lc_labels[lc]
+    label && label!(fig, l, 0, i)
+    # Populations
+    ax = Axis(fig[1, i]; 
+        yscale=log10, 
+        xticks=[100, 200, 300],
+        yticks=[0.01, 0.1, 1, 10, 100],
+    )
+    ylims!(ax, (0.001, 500))
+    results = hanski_sim(m)
+    log_fudge = (0.000000001 * oneunit(last(last(last(results)))))
+    map(3:-1:1) do r
+        rodent_timeline = getindex.(last(results), r) .+ log_fudge
+        Makie.lines!(ax, ustrip.(u"d", tspan), rodent_timeline; 
+            label=rodent.labels[r], 
+            color=rodent_colors[r],
+            linewidth=2,
+        )
+    end
+    cat_timeline = first(results) .+ log_fudge
+    Makie.lines!(ax, ustrip.(u"d", tspan), cat_timeline; 
+        label="Cat", 
+        color=cat_color,
+        linewidth=2,
+    )
+    hideydecorations!(ax; ticks=hideticks, ticklabels=hideticks)
+    hidexdecorations!(ax; label=false, ticks=false, ticklabels=false)
+    hidespines!(ax)
+    return ax
+end
+
+CairoMakie.activate!()
+fig = let
+    fig = Figure(; size=(800, 250));
+    axs = map(1:3) do i
+        plot_populations!(fig, model, lc_ks, i; hideticks=i != 1, label=true)
+    end
+    Legend(fig[1, 4], axs[1]; framevisible=false)
+    rowgap!(fig.layout, 1, 0)
+    rowsize!(fig.layout, 0, Relative(0.1))
+    fig
+end
+
+save(joinpath(basepath, "images/si_sim.png"), fig)
+save(joinpath(basepath, "images/si_sim.svg"), fig)
+
+fig = let
+    fig = Figure(; size=(800, 250));
+    ax = plot_populations!(fig, model, lc_ks, 1; hideticks=true, lc=3)
+    Legend(fig[1, 2], ax; framevisible=false)
+    fig
+end
+
+save(joinpath(basepath, "images/si_sim_mini.png"), fig)
+save(joinpath(basepath, "images/si_sim_mini.svg"), fig)
 
 # Live interaction to find α parameters
 # mm = MakieModel(model) do layout, m
@@ -142,67 +208,6 @@ model |> pairs
 #     axislegend(ax1)
 #     axislegend(ax2)
 # end
-
-simplify!(ax; kw...) = (hidedecorations!(ax; kw...); hidespines!(ax))
-
-CairoMakie.activate!()
-
-function plot_populations!(fig, model, lc_ks, i; 
-    lc=i, 
-    hideticks=true, 
-    label=false,
-    xlabel=lc_labels[lc],
-)
-    cat_color = InvasivePredation.cat_color
-    rodent_colors = InvasivePredation.rodent_colors
-    m = @set model.ks = lc_ks[lc]
-    # Label
-    if label
-        text_ax = Axis(fig[0, i])
-        xlims!(text_ax, (0, 1))
-        ylims!(text_ax, (0, 1))
-        simplify!(text_ax)
-        text!(text_ax, 0.0, 0.0; text=scenario_labels[i], fontsize=20)
-    end
-    # Populations
-    ax = Axis(fig[1, i]; yscale=log10, xlabel, yticks=[0.01, 0.1, 1, 10, 100])
-    ylims!(ax, (0.001, 900))
-    results = hanski_sim(m)
-    log_fudge = (0.000000001 * oneunit(last(last(last(results)))))
-    map(3:-1:1) do r
-        rodent_timeline = getindex.(last(results), r) .+ log_fudge
-        Makie.lines!(ax, tspan, rodent_timeline; label=rodent.labels[r], color=rodent_colors[r])
-    end
-    cat_timeline = first(results) .+ log_fudge
-    Makie.lines!(ax, tspan, cat_timeline; label="Cat", color=cat_color)
-    hideydecorations!(ax; ticks=hideticks, ticklabels=hideticks)
-    hidexdecorations!(ax; label=false, ticks=false, ticklabels=false)
-    hidespines!(ax)
-    return ax
-end
-
-fig = let
-    fig = Figure(; size=(800, 250));
-    axs = map(1:3) do i
-        plot_populations!(fig, model, lc_ks, i; hideticks=i != 1, label=true)
-    end
-    Legend(fig[1, 4], axs[1]; framevisible=false)
-    rowsize!(fig.layout, 0, Relative(0.2))
-    fig
-end
-
-save(joinpath(basepath, "images/si_sim.png"), fig)
-save(joinpath(basepath, "images/si_sim.svg"), fig)
-
-fig = let
-    fig = Figure(; size=(600, 350));
-    ax = plot_populations!(fig, model, lc_ks, 1; hideticks=true, lc=3, xlabel="")
-    Legend(fig[1, 2], ax; framevisible=false)
-    fig
-end
-
-save(joinpath(basepath, "images/si_sim.png"), fig)
-save(joinpath(basepath, "images/si_sim.svg"), fig)
 
 
 ##############################################################################3
@@ -244,8 +249,8 @@ rodent_spread_rule = InwardsDispersal{:rodents}(;
 
 ruleset = Ruleset(hanski_rule, rodent_spread_rule, cat_spread_rule)#, rodent_allee_rule)
 
-rodents = Raster(fill(lc_ks.native ./ 2, X(64), Y(64)))
-cats = map(_ -> 0.01oneunit(lc_ks.native[1]), rodents)
+rodents = Raster(fill(lc_ks.forest ./ 2, X(64), Y(64)))
+cats = map(_ -> 0.01oneunit(lc_ks.forest[1]), rodents)
 tspan = 1:1000
 mpd = Raster(rand(MidpointDisplacement(0.35), dims(rodents)))
 a = quantile(vec(mpd), 1/4)

@@ -34,13 +34,11 @@ basepath = InvasivePredation.basepath
 # Makie.plot(Normal(1, 1); color=:black)
 # map(sum, yields)
 
-simplify!(ax; kw...) = (hidedecorations!(ax; kw...); hidespines!(ax))
-
 fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     # colors = #[:magenta, :cyan, :yellow]
     rows = [-1:0, 1:2, 3, 4]
     colors = InvasivePredation.rodent_colors
-    fig = Figure(; size=(600, 500));
+    fig = Figure(; size=(600, 450));
     kw = (; spinewidth=2, xgridwidth=2, ygridwidth=2)
     ax1 = Axis(fig[rows[1], 1];
         xticks=100:100:700,
@@ -91,11 +89,11 @@ fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     #         color=(colors[i], alpha), label="Trapped " * rodent.labels[i],
     #     )
     # end
-    # m1, m2, m3 = map(1:3, rodent_mass_distributions) do i, rat
-    #     Makie.lines!(ax2, rat;
-    #         color=(colors[i], alpha), label=rodent.labels[i] * " LogNormal model",
-    #     )
-    # end
+    m1, m2, m3 = map(1:3, rodent_mass_distributions) do i, rat
+        Makie.lines!(ax2, rat;
+            color=(colors[i], alpha), label=rodent.labels[i] * " LogNormal model",
+        )
+    end
     # b4 = Makie.lines!(ax2, norway_rat_params.bin_center_mass, norway_rat_params.killed_rats ./ sum(norway_rat_params.killed_rats);
     #     color=(ColorSchemes.solar[0.7], alpha), label="Predated Norway rat",
     # )
@@ -107,7 +105,7 @@ fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     d = Makie.density!(ax3, cat.mean_prey_sizes; color=:grey, label="Literature mean\nprey sizes")
     Makie.xlims!.(axs, ((0, 700),))
     # Labels
-    for (i, text) in enumerate(["A", "B", "C", "D"][1:length(axs)])
+    for (i, text) in enumerate(["A", "B", "C", "D", "E"][1:length(axs)])
         text_ax = Axis(fig[rows[i], 0])
         xlims!(text_ax, (0, 1)); ylims!(text_ax, (0, 1)); simplify!(text_ax)
         text!(text_ax, 0.0, 0.0; text, fontsize=20)

@@ -24,29 +24,27 @@ s = InvasivePredation.load_settings()
 # Stochasticity reduces yield
 fig = let
     fig = Figure(; size=(500, 500));
-    labels = ["Optimal fraction\nhunted per month", "Supported cats\n per km^2", "Mean rodents\n per hectare"]
+    labels = ["Optimal fraction\nhunted per month", "Supported cats\n", "Mean rodents\n"]
     yl = ((0, 0.5), (0, 2.0), (0, 40))
     x = stochastic_rates.std
     xticks = 0:0.4:4.0
+    linewidth = 2
+    ax_kw = (; xticks, spinewidth=2, xgridwidth=2, ygridwidth=2)
     axs = map(enumerate(labels)) do (i, ylabel)
         ax = if i == 3
             Axis(fig[i, 1];
                 xlabel="Scalar of standard deviation\nof hunting stochasticity", 
                 # xlabel="seasonality", 
-                ylabel, 
-                xticks,
-                spinewidth=2, xgridwidth=2, ygridwidth=2, 
+                ylabel, ax_kw...
             )
         else
             Axis(fig[i, 1]; 
-                ylabel, 
-                xticks,
                 xticksvisible=false, 
                 xticklabelsvisible=false,
-                spinewidth=2, xgridwidth=2, ygridwidth=2, 
+                ylabel, ax_kw...
             )
         end
-        # simplify!(ax)
+        label!(fig, ('A':'E')[i], i, 0)
         ylims!(ax, yl[i])
         ax
     end
@@ -58,13 +56,13 @@ fig = let
         color = InvasivePredation.rodent_colors[i]
         label = s.rodent.labels[i]
         p1 = Makie.lines!(axs[1], x, fracs[:, i];
-            label, color
+            label, color, linewidth
         )
         p2 = Makie.lines!(axs[2], x, cats[:, i];
-            label, color
+            label, color, linewidth
         )
         p3 = Makie.lines!(axs[3], x, rodents[:, i];
-            label, color
+            label, color, linewidth
         )
         (p1, p2, p3)
     end

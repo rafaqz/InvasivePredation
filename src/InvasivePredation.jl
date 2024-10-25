@@ -10,6 +10,7 @@ using LandscapeChange
 using ColorSchemes
 using CSV
 using DataFrames
+using Makie
 
 export interaction_matrix, plot_densities, plot_interactions
 
@@ -20,12 +21,15 @@ export find_predation_preference, optimize_predation_preference,
 
 export optimise_hunting
 
+export simplify!, label!
+
 const basepath = realpath(joinpath(@__DIR__, ".."))
 
 include("hanski.jl")
 include("preference.jl")
 include("yield.jl")
 include("load_settings.jl")
+include("plot_utils.jl")
 
 cat_color = ColorSchemes.solar[0.7]
 rodent_colors = ColorSchemes.tempo[[0.2, 0.55, 0.9]]
