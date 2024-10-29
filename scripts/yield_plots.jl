@@ -11,8 +11,8 @@ using GLMakie
 using Distributions
 using NLopt
 using OptimizationNLopt
-# using CairoMakie
-# CairoMakie.activate!()
+using CairoMakie
+CairoMakie.activate!()
 
 using InvasivePredation
 
@@ -30,24 +30,30 @@ fig = let
     xticks = 0:0.4:4.0
     linewidth = 2
     ax_kw = (; xticks, spinewidth=2, xgridwidth=2, ygridwidth=2)
+    ax_yticks = (0.1:0.1:0.4, 0.5:0.5:1.5, 10:10:30)
     axs = map(enumerate(labels)) do (i, ylabel)
+        yticks = ax_yticks[i]
         ax = if i == 3
             Axis(fig[i, 1];
                 xlabel="Scalar of standard deviation\nof hunting stochasticity", 
-                # xlabel="seasonality", 
+                yticks,
                 ylabel, ax_kw...
             )
         else
             Axis(fig[i, 1]; 
+                yticks,
                 xticksvisible=false, 
                 xticklabelsvisible=false,
                 ylabel, ax_kw...
             )
         end
         label!(fig, ('A':'E')[i], i, 0)
+        hidexdecorations!(ax; label=false, ticks=false, ticklabels=false)
+        hideydecorations!(ax; label=false, ticks=false, ticklabels=false)
         ylims!(ax, yl[i])
         ax
     end
+    colsize!(fig.layout, 0,  Relative(0.05))
     linkxaxes!(axs...)
     rodents = stochastic_rates[:, rodent.names]
     fracs = stochastic_rates[:, map(x -> Symbol(:frac_, x), rodent.names)]

@@ -37,7 +37,18 @@ function calculate_predation_rate(predator_preference, bin_center_mass, trap_rat
     predation_rate = sum(predation_rates)
     mass_yields = sum(predation_rates .* bin_mass) .* u"g"
     mean_predation_mass = sum(normalised_rates .* bin_center_mass) * u"g"
-    return (; bin_center_mass, mean_mass, mean_predation_mass, bin_mass, mass_yields, predation_pds, predation_rates, predation_rate, trap_rate)
+
+    return (;
+        bin_center_mass,
+        mean_mass,
+        mean_predation_mass,
+        bin_mass,
+        mass_yields,
+        predation_pds,
+        predation_rates,
+        predation_rate,
+        trap_rate
+    )
 end
 
 function optimize_mass_distribution(p)
@@ -48,7 +59,11 @@ function optimize_mass_distribution(p)
     )
     sol = solve(prob, NLopt.LN_NELDERMEAD())
     μ, σ = sol.u
-    return LogNormal(log(μ), σ)
+
+    distribution = LogNormal(log(μ), σ)
+    residuals = find_mass_residuals([μ, σ], p)
+
+    return (; distribution, residuals)
 end
 
 function optimize_predation_preference(p)
@@ -60,7 +75,10 @@ function optimize_predation_preference(p)
     )
     sol = solve(prob, NLopt.LN_NELDERMEAD())
     μ, σ = sol.u
-    return LogNormal(log(μ), σ)
+    distribution = LogNormal(log(μ), σ)
+    residuals = find_predation_residuals([μ, σ], p)
+
+    return (; distribution, residuals)
 end
 
 function fit_distributions_to_literature()
@@ -118,10 +136,7 @@ function fit_distributions_to_literature()
     norway_rat_params = (; trapped_rats, killed_rats, bin_center_mass=bin_center_100)
 
     # Optimise a LogNormal distribution
-    distribution = optimize_predation_preference(norway_rat_params)
-    x = [distribution.μ, distribution.σ]
-    residuals = find_predation_residuals(x, norway_rat_params)
-    cat_mass_preference = (; distribution, residuals)
+    cat_mass_preference = optimize_predation_preference(norway_rat_params)
 
     # From the diet review paper
     # these are means prey size accross whole studies

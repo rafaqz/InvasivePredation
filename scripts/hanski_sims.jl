@@ -47,9 +47,7 @@ metabolic_rate = (;
     mouse=637.0u"kJ*kg^-(3/4)*d^-1",
 )
 
-
 # Parameter estimates
-
 lc_energy_available = NamedVector(;
     forest=5000u"kJ*d^-1",
     cleared=5000u"kJ*d^-1",
@@ -339,11 +337,11 @@ fig = let ylabelsize=20
     )
     all_axs = map(enumerate(outputs)) do (j, output)
         # Labels
-        text_ax = Axis(fig[0, j]; axis=1)
+        text_ax = Axis(fig[0, j])
         xlims!(text_ax, (0, 1))
         ylims!(text_ax, (0, 1))
         simplify!(text_ax)
-        text!(text_ax, 0.0, 0.0; text=scenario_labels[j], fontsize=20)
+        # text!(text_ax, 0.0, 0.0; text=scenario_labels[j], fontsize=20)
         # Landcover
         lc_ax = Axis(fig[1, j]; ylabel="Land Cover", ylabelsize, aspect=1)
         lc_im = image!(lc_ax, lc; colormap=grays, interpolate=false, colorrange=(0.5, 3.5))
@@ -358,8 +356,8 @@ fig = let ylabelsize=20
                 ylabelsize, 
                 aspect=1
             )
-            rA = output[end].rodents
-            r = image!(rodent_ax, getindex.(rA, i);
+            rA = round.(u"ha^-1", getindex.(output[end].rodents, i) ./ 10) .* 10 
+            r = image!(rodent_ax, rA;
                 colormap=:tempo,
                 interpolate=false,
                 colorrange=(0.0, max),
@@ -372,7 +370,7 @@ fig = let ylabelsize=20
         end
         # Cats
         cat_ax = Axis(fig[5, j]; ylabel="Cat", ylabelsize, aspect=1)
-        cA = output[end].cats
+        cA = round.(u"ha^-1", output[end].cats .* 100) ./ 100
         c = image!(cat_ax, cA;
             colormap=Reverse(:solar),
             interpolate=false,
@@ -406,7 +404,8 @@ fig = let ylabelsize=20
     # Rodents
     rodent_axs = map(1:3) do i
         ax = Axis(fig[1, 1 + i]; aspect=1)
-        A = rebuild(getindex.(output[end].rodents, i); missingval=0.0u"ha^-1")
+        rA = round.(getindex.(output[end].rodents, i) ./ 10) .* 10
+        A = rebuild(; missingval=0.0u"ha^-1")
         r = image!(ax, A;
             colormap=:tempo,
             interpolate=false,
