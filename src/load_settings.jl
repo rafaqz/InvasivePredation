@@ -14,6 +14,14 @@ function load_settings()
             rmax=R(rodent_df.rmax),
             names=rodent_names,
             labels=titlecase.(replace.(rodent_df.name, ("_" => " ",)))
+            metabolic_rate = (;
+                norway_rat=211.0u"kJ*kg^-(3/4)*d^-1",
+                black_rat=211.0u"kJ*kg^-(3/4)*d^-1",
+                mouse=211.0u"kJ*kg^-(3/4)*d^-1",
+            ),
+            energy_intake = map(metabolic_rate, rodent_stats) do mr, rs
+                uconvert(u"kJ/d", mr * (rs.mean_mass * u"g"^(3/4)))
+            end |> NamedVector,
         ),
         cat=(
             mean_prey_sizes=sort!(
