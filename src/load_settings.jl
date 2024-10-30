@@ -26,7 +26,7 @@ function load_settings()
             rmax=cat_data.rmax,
             energy_intake=2131u"kJ/d",
             fraction_eaten=0.72, # McGregor 2015
-            assimilation_efficiency=0.85,
+            assimilation_efficiency=0.85, # Michael J. Konecny
         ),
         yield_metaparams=(;
             nsteps=12, # 12 steps (months) is a close enough approximation of continuous
