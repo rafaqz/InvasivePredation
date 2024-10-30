@@ -15,9 +15,9 @@ function find_predation_residuals(x, p)
     μ, σ = x
     cat_preference = LogNormal(log(μ), σ);
     predation_pds = pdf.((cat_preference,), p.bin_center_mass) .* p.trapped_rats
-    killed_means = p.killed_rats ./ sum(p.killed_rats)
-    predicted_means = predation_pds ./ sum(predation_pds)
-    return sum((killed_means .- predicted_means) .^ 2)
+    killed_normalised = p.killed_rats ./ sum(p.killed_rats)
+    predicted_normalised = predation_pds ./ sum(predation_pds)
+    return sum((killed_normalised .- predicted_normalised) .^ 2)
 end
 
 function calculate_predation_rate(predator_preference, bin_center_mass, trap_rate)
