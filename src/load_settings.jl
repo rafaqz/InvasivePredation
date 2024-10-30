@@ -10,18 +10,11 @@ function load_settings()
     return (;
         rodent=(
             energy_content=6.24u"kJ/g",
-            carrycap=R(rodent_df.carrycap) .* u"ha^-1",
+            metabolic_rate = 939u"kJ*kg^-0.75*d^-1",
+            carrycap=R(rodent_df.carrycap) .* u"ha^-1", # Only used for examples 
             rmax=R(rodent_df.rmax),
             names=rodent_names,
-            labels=titlecase.(replace.(rodent_df.name, ("_" => " ",)))
-            metabolic_rate = (;
-                norway_rat=211.0u"kJ*kg^-(3/4)*d^-1",
-                black_rat=211.0u"kJ*kg^-(3/4)*d^-1",
-                mouse=211.0u"kJ*kg^-(3/4)*d^-1",
-            ),
-            energy_intake = map(metabolic_rate, rodent_stats) do mr, rs
-                uconvert(u"kJ/d", mr * (rs.mean_mass * u"g"^(3/4)))
-            end |> NamedVector,
+            labels=titlecase.(replace.(rodent_df.name, ("_" => " ",))),
         ),
         cat=(
             mean_prey_sizes=sort!(
