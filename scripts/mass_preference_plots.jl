@@ -42,20 +42,16 @@ fig = let (; norway_rat, black_rat, mouse) = rodent_stats
     kw = (; spinewidth=2, xgridwidth=2, ygridwidth=2)
     ax1 = Axis(fig[1, 1];
         xticks=100:100:700,
-        xlabel="Rat mass",
-        ylabel="Fraction of\ntotal",
+        ylabel="Fraction of total",
         kw...
     )
     ax2 = Axis(fig[2, 1]; 
-        xlabel="Prey size", 
-        ylabel="Probability\ndensity", 
-        yscale=log10,
+        ylabel="Preferred mass", 
         kw...
     )
     axs = ax1, ax2
     xlims!.(axs, ((0, 700),))
-    ylims!(ax2, (0.0001, 0.1))
-    hidexdecorations!.(axs[1])
+    hidexdecorations!(axs[1])
     hidexdecorations!(axs[2]; ticks=false, ticklabels=false, label=false)
     hideydecorations!.(axs; ticks=false, ticklabels=false, label=false)
     linkxaxes!(axs...)
@@ -89,14 +85,6 @@ fig = let (; norway_rat, black_rat, mouse) = rodent_stats
         color=(cat_colors[2], alpha),
         linewidth=2,
     )
-
-    m1, m2, m3 = map(1:3, rodent_mass_distributions) do i, r
-        Makie.lines!(ax2, r.distribution;
-            color=(colors[i], alpha), 
-            label=rodent.labels[i] * " mass model",
-            linewidth=2,
-        )
-    end
 
     labels = ["Trapped Childs", "Trapped Glass", 
               "Predated Childs", "Predated Glass"]
@@ -137,7 +125,7 @@ fig = let (; norway_rat, black_rat, mouse) = rodent_stats
         labelsize=10,
     )
 
-    return fig
+    fig
 end
 
 save(joinpath(basepath, "images/norway_rat_traps_and_kills.png"), fig)
