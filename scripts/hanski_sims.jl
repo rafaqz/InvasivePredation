@@ -224,21 +224,23 @@ cat_spread_rule = OutwardsDispersal{:cats}(;
     maskbehavior=Dispersal.CheckMaskEdges()
 )
 
+λ = 0.2
+allee = 0.25
+
 rodent_λ = NamedVector{propertynames(Ns0)}((
-    Param(0.2, label="R.n λ", bounds=(0.00001, 1.0)),
-    Param(0.2, label="R.r λ", bounds=(0.00001, 1.0)),
-    Param(0.2, label="M.n λ", bounds=(0.00001, 1.0)),
+    Param(λ , label="R.n λ", bounds=(0.00001, 1.0)),
+    Param(λ , label="R.r λ", bounds=(0.00001, 1.0)),
+    Param(λ , label="M.n λ", bounds=(0.00001, 1.0)),
 ))
 ExponentialKernel([1.0, 2.0])(10.0)
 
 rodent_spread_rule = InwardsDispersal{:rodents}(;
     stencil=Moore(3),
     formulation=ExponentialKernel(rodent_λ),
-    # maskbehavior=Dispersal.CheckMaskEdges()
 )
 
 rodent_allee_rule = AlleeExtinction{:rodents}(
-    NamedVector(; norway_rat=0.4, black_rat=0.4, mouse=0.4) .* u"ha^-1"
+    NamedVector(; norway_rat=allee, black_rat=allee, mouse=allee) .* u"ha^-1"
 )
 
 ruleset = Ruleset(hanski_rule, rodent_spread_rule, cat_spread_rule, rodent_allee_rule)
@@ -434,6 +436,3 @@ end
 
 save(joinpath(basepath, "images/se_sim_mini.png"), fig)
 save(joinpath(basepath, "images/se_sim_mini.svg"), fig)
-
-# fig
-
